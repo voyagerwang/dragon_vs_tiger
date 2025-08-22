@@ -1,0 +1,18 @@
+# 其他图片资源目录
+
+此目录用于存放游戏界面相关的图片资源：
+
+## 可能包含的资源：
+- logo.png - 游戏Logo
+- background.jpg - 游戏背景
+- button_start.png - 开始按钮
+- button_restart.png - 重新开始按钮
+- player_avatar.png - 玩家头像
+- ai_avatar.png - AI头像
+- faction_dragon.png - 龙阵营标识
+- faction_tiger.png - 虎阵营标识
+
+## 图片规格要求：
+- 格式：PNG/JPG/SVG
+- 针对移动端优化
+- 支持高DPI屏幕

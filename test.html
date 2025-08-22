@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>龙虎斗 - 测试版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .game-title {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .start-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .start-button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        .status {
+            margin-top: 2rem;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            min-height: 100px;
+        }
+        .error {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">🐉 龙虎斗 🐅</h1>
+    <button class="start-button" onclick="testGame()">测试游戏</button>
+    <div class="status" id="status">点击按钮测试游戏模块...</div>
+
+    <script>
+        async function testGame() {
+            const status = document.getElementById('status');
+            status.innerHTML = '正在测试游戏模块...';
+            
+            try {
+                // 测试模块导入
+                status.innerHTML += '<br>✓ 开始导入模块...';
+                
+                const { GameEngine } = await import('./scripts/core/GameEngine.js');
+                status.innerHTML += '<br>✓ GameEngine 导入成功';
+                
+                const { UIManager } = await import('./scripts/ui/UIManager.js');
+                status.innerHTML += '<br>✓ UIManager 导入成功';
+                
+                const { ImageLoader } = await import('./scripts/utils/ImageLoader.js');
+                status.innerHTML += '<br>✓ ImageLoader 导入成功';
+                
+                const { Logger } = await import('./scripts/utils/Logger.js');
+                status.innerHTML += '<br>✓ Logger 导入成功';
+                
+                // 测试实例化
+                status.innerHTML += '<br><br>🔧 测试模块实例化...';
+                
+                const gameEngine = new GameEngine();
+                status.innerHTML += '<br>✓ GameEngine 实例化成功';
+                
+                const logger = new Logger('[Test]');
+                status.innerHTML += '<br>✓ Logger 实例化成功';
+                
+                // 测试基础功能
+                status.innerHTML += '<br><br>🎮 测试基础功能...';
+                
+                const newGameResult = gameEngine.startNewGame();
+                if (newGameResult.success) {
+                    status.innerHTML += '<br>✓ 游戏启动成功';
+                } else {
+                    status.innerHTML += '<br>❌ 游戏启动失败: ' + newGameResult.error?.message;
+                }
+                
+                status.innerHTML += '<br><br>🎉 所有测试通过！游戏可以正常运行。';
+                status.innerHTML += '<br><a href="index.html" style="color: #3498db; text-decoration: none; font-weight: bold;">👉 点击这里进入完整游戏</a>';
+                
+            } catch (error) {
+                console.error('测试失败:', error);
+                status.innerHTML += '<br><div class="error">❌ 测试失败: ' + error.message + '</div>';
+                status.innerHTML += '<br>请查看浏览器控制台获取详细错误信息。';
+            }
+        }
+        
+        // 捕获其他错误
+        window.addEventListener('error', function(e) {
+            console.error('页面错误:', e.error);
+            const status = document.getElementById('status');
+            status.innerHTML += '<br><div class="error">页面错误: ' + e.error.message + '</div>';
+        });
+    </script>
+</body>
+</html>

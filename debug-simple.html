@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>龙虎斗 - 调试版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-rows: repeat(5, 120px);
+            grid-template-columns: repeat(4, 90px);
+            gap: 10px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            margin: 20px auto;
+            width: fit-content;
+        }
+        
+        .board-cell {
+            background: #ecf0f1;
+            border: 2px solid #95a5a6;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .board-cell.empty-row {
+            background: #34495e;
+            cursor: default;
+        }
+        
+        .card {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            text-align: center;
+        }
+        
+        /* 关键：背面卡牌样式 */
+        .card.back {
+            background: white url('assets/cards/card_back.png') center/cover no-repeat !important;
+            color: transparent !important;
+        }
+        
+        /* 关键：正面卡牌样式 */
+        .card.front {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            color: transparent !important;
+            font-weight: bold;
+        }
+        
+        .card.front .card-name {
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-align: center;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .log {
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .test-section {
+            border: 1px solid #555;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐉 龙虎斗 - 调试版 🐅</h1>
+    
+    <div class="test-section">
+        <h3>1. 图片测试</h3>
+        <button class="button" onclick="testBackImage()">测试背面图片</button>
+        <button class="button" onclick="testFrontImages()">测试正面图片</button>
+        <div id="image-test-area" style="display: flex; gap: 10px; margin: 10px 0;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 棋盘测试</h3>
+        <button class="button" onclick="createTestBoard()">创建测试棋盘</button>
+        <button class="button" onclick="addTestCards()">添加测试卡牌</button>
+        <button class="button" onclick="flipAllCards()">翻转所有卡牌</button>
+        
+        <div id="game-board" class="game-board">
+            <!-- 棋盘将在这里生成 -->
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 游戏引擎测试</h3>
+        <button class="button" onclick="testGameEngine()">测试游戏引擎</button>
+        <button class="button" onclick="startRealGame()">启动真实游戏</button>
+    </div>
+    
+    <div class="log" id="log">
+        <div>调试日志将在这里显示...</div>
+    </div>
+
+    <script type="module">
+        // 导入游戏引擎
+        import { GameEngine } from './scripts/core/GameEngine.js';
+        
+        let gameEngine = null;
+        let testCards = [];
+        
+        // 日志函数
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logElement.innerHTML += `<div>[${time}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+        
+        // 1. 测试背面图片
+        window.testBackImage = function() {
+            log('🔍 测试背面图片...');
+            
+            const testArea = document.getElementById('image-test-area');
+            testArea.innerHTML = '';
+            
+            // 方法1: CSS背景
+            const cssTest = document.createElement('div');
+            cssTest.style.width = '80px';
+            cssTest.style.height = '112px';
+            cssTest.style.background = 'url("assets/cards/card_back.png") center/cover no-repeat';
+            cssTest.style.border = '2px solid yellow';
+            cssTest.title = 'CSS背景';
+            testArea.appendChild(cssTest);
+            
+            // 方法2: IMG标签
+            const imgTest = document.createElement('img');
+            imgTest.src = 'assets/cards/card_back.png?t=' + Date.now();
+            imgTest.style.width = '80px';
+            imgTest.style.height = '112px';
+            imgTest.style.border = '2px solid green';
+            imgTest.title = 'IMG标签';
+            imgTest.onload = () => log('✅ IMG标签加载成功');
+            imgTest.onerror = () => log('❌ IMG标签加载失败');
+            testArea.appendChild(imgTest);
+            
+            log('🔍 背面图片测试已创建');
+        };
+        
+        // 2. 测试正面图片
+        window.testFrontImages = function() {
+            log('🔍 测试正面图片...');
+            
+            const testArea = document.getElementById('image-test-area');
+            testArea.innerHTML = '';
+            
+            const testImages = [
+                'dragon_1.png',
+                'dragon_8.png', 
+                'tiger_1.png', 
+                'tiger_8.png'
+            ];
+            
+            testImages.forEach(imageName => {
+                const imgTest = document.createElement('img');
+                imgTest.src = `assets/cards/${imageName}?t=${Date.now()}`;
+                imgTest.style.width = '60px';
+                imgTest.style.height = '84px';
+                imgTest.style.border = '1px solid white';
+                imgTest.style.margin = '2px';
+                imgTest.title = imageName;
+                imgTest.onload = () => log(`✅ ${imageName} 加载成功`);
+                imgTest.onerror = () => log(`❌ ${imageName} 加载失败`);
+                testArea.appendChild(imgTest);
+            });
+        };
+        
+        // 3. 创建测试棋盘
+        window.createTestBoard = function() {
+            log('🎨 创建测试棋盘...');
+            
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    if (row === 2) {
+                        cell.classList.add('empty-row');
+                        cell.textContent = '⚡';
+                    } else {
+                        cell.addEventListener('click', () => handleCellClick(row, col));
+                        cell.textContent = `${row},${col}`;
+                    }
+                    
+                    board.appendChild(cell);
+                }
+            }
+            
+            log(`✅ 棋盘创建完成，共${4*4}个有效格子`);
+        };
+        
+        // 4. 添加测试卡牌
+        window.addTestCards = function() {
+            log('🃏 添加测试卡牌...');
+            
+            const cells = document.querySelectorAll('.board-cell:not(.empty-row)');
+            testCards = [];
+            
+            cells.forEach((cell, index) => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                
+                const card = document.createElement('div');
+                card.className = 'card back';
+                card.dataset.cardIndex = index;
+                card.dataset.flipped = 'false';
+                
+                // 预设卡牌数据
+                const faction = index % 2 === 0 ? 'dragon' : 'tiger';
+                const level = (index % 8) + 1;
+                card.dataset.faction = faction;
+                card.dataset.level = level;
+                
+                cell.innerHTML = '';
+                cell.appendChild(card);
+                
+                testCards.push({
+                    element: card,
+                    faction: faction,
+                    level: level,
+                    isFlipped: false
+                });
+            });
+            
+            log(`✅ 添加了${testCards.length}张测试卡牌`);
+        };
+        
+        // 5. 翻转所有卡牌
+        window.flipAllCards = function() {
+            log('🔄 翻转所有卡牌...');
+            
+            testCards.forEach((cardData, index) => {
+                setTimeout(() => {
+                    flipCard(cardData);
+                }, index * 200); // 逐个翻转
+            });
+        };
+        
+        // 翻转单张卡牌
+        function flipCard(cardData) {
+            const card = cardData.element;
+            
+            if (cardData.isFlipped) {
+                // 翻回背面
+                card.className = 'card back';
+                card.style.backgroundImage = '';
+                card.innerHTML = '';
+                cardData.isFlipped = false;
+                log(`🎴 卡牌翻回背面`);
+            } else {
+                // 翻到正面 - 使用与简化版相同的方法
+                card.className = 'card front';
+                const imagePath = `assets/cards/${cardData.faction}_${cardData.level}.png?t=${Date.now()}`;
+                card.style.backgroundImage = `url('${imagePath}')`;
+                
+                // 清空内容
+                card.innerHTML = '';
+                
+                // 创建卡牌信息覆盖层 - 使用与简化版相同的类名
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'card-name';
+                infoDiv.textContent = `${cardData.faction}_${cardData.level}`;
+                card.appendChild(infoDiv);
+                
+                cardData.isFlipped = true;
+                log(`🃏 卡牌翻到正面: ${cardData.faction}_${cardData.level} (${imagePath})`);
+            }
+        }
+        
+        // 处理格子点击
+        function handleCellClick(row, col) {
+            log(`🔍 点击了位置 (${row}, ${col})`);
+            
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const card = cell.querySelector('.card');
+            
+            if (card) {
+                const index = parseInt(card.dataset.cardIndex);
+                if (testCards[index]) {
+                    flipCard(testCards[index]);
+                }
+            } else {
+                log('⚠️ 该位置没有卡牌');
+            }
+        }
+        
+        // 6. 测试游戏引擎
+        window.testGameEngine = function() {
+            log('🎮 测试游戏引擎...');
+            
+            try {
+                gameEngine = new GameEngine();
+                log('✅ 游戏引擎创建成功');
+                
+                const result = gameEngine.startNewGame();
+                if (result.success) {
+                    log('✅ 游戏启动成功');
+                    log(`📊 游戏状态: ${gameEngine.gameState.phase}`);
+                    log(`🃏 卡牌数量: ${gameEngine.gameState.cardsData.length}`);
+                    
+                    // 确保游戏状态正确
+                    if (gameEngine.gameState.phase !== 'playing') {
+                        log('⚠️ 游戏状态不正确，手动设置为playing');
+                        gameEngine.gameState.phase = 'playing';
+                    }
+                    
+                    const boardResult = gameEngine.initializeBoard();
+                    if (boardResult && boardResult.success) {
+                        log('✅ 棋盘初始化成功');
+                        log(`📊 更新后游戏状态: ${gameEngine.gameState.phase}`);
+                    } else {
+                        log(`❌ 棋盘初始化失败: ${boardResult?.error?.message || '未知错误'}`);
+                    }
+                } else {
+                    log(`❌ 游戏启动失败: ${result.error?.message}`);
+                }
+                
+            } catch (error) {
+                log(`❌ 游戏引擎测试失败: ${error.message}`);
+                console.error('GameEngine test error:', error);
+            }
+        };
+        
+        // 7. 启动真实游戏
+        window.startRealGame = function() {
+            log('🚀 启动真实游戏...');
+            
+            if (!gameEngine) {
+                log('⚠️ 请先测试游戏引擎');
+                return;
+            }
+            
+            // 设置为玩家回合
+            gameEngine.gameState.currentPlayer = 'player';
+            log('🎯 设置为玩家回合');
+            log(`📊 当前玩家: ${gameEngine.gameState.currentPlayer}`);
+            
+            // 清空棋盘
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            
+            // 重新创建棋盘
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    if (row === 2) {
+                        cell.classList.add('empty-row');
+                        cell.textContent = '⚡';
+                    } else {
+                        cell.addEventListener('click', () => handleRealCellClick(row, col));
+                    }
+                    
+                    board.appendChild(cell);
+                }
+            }
+            
+            // 渲染真实卡牌
+            renderRealBoard();
+        };
+        
+        function renderRealBoard() {
+            log('🎨 渲染真实游戏棋盘...');
+            
+            const gameState = gameEngine.gameState;
+            
+            gameState.cardsData.forEach(card => {
+                if (card.position.row >= 0 && card.position.col >= 0) {
+                    const cell = document.querySelector(`[data-row="${card.position.row}"][data-col="${card.position.col}"]`);
+                    if (cell) {
+                        const cardElement = document.createElement('div');
+                        cardElement.className = 'card';
+                        
+                        if (card.isRevealed) {
+                            cardElement.classList.add('front');
+                            const imagePath = `assets/cards/${card.faction}_${card.level}.png?t=${Date.now()}`;
+                            cardElement.style.backgroundImage = `url('${imagePath}')`;
+                            
+                            // 创建卡牌名称标签
+                            const nameLabel = document.createElement('div');
+                            nameLabel.className = 'card-name';
+                            nameLabel.textContent = card.name;
+                            cardElement.appendChild(nameLabel);
+                            
+                            log(`🃏 渲染已翻开卡牌: ${card.name} (${imagePath})`);
+                        } else {
+                            cardElement.classList.add('back');
+                            log(`🎴 渲染背面卡牌 at (${card.position.row}, ${card.position.col})`);
+                        }
+                        
+                        cell.appendChild(cardElement);
+                    }
+                }
+            });
+            
+            log('🎨 真实棋盘渲染完成');
+        }
+        
+        function handleRealCellClick(row, col) {
+            log(`🔍 真实游戏点击: (${row}, ${col})`);
+            
+            const gameState = gameEngine.gameState;
+            const card = gameState.getCardAt(row, col);
+            
+            if (card && !card.isRevealed) {
+                log('🎯 尝试翻牌...');
+                const result = gameEngine.flipCard(row, col);
+                
+                if (result.success) {
+                    log(`✅ 翻牌成功: ${result.data.flippedCard.name}`);
+                    renderRealBoard();
+                } else {
+                    log(`❌ 翻牌失败: ${result.error?.message}`);
+                }
+            } else if (card) {
+                log('⚠️ 卡牌已经翻开');
+            } else {
+                log('⚠️ 该位置没有卡牌');
+            }
+        }
+        
+        // 初始化
+        log('🚀 调试页面已加载，请点击按钮开始测试');
+    </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>龙虎斗</title>
+    <meta name="description" content="经典的龙虎斗卡牌对战游戏">
+    <meta name="keywords" content="龙虎斗,卡牌游戏,策略游戏">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="styles/main.css" as="style">
+    <link rel="preload" href="styles/game-board.css" as="style">
+    <link rel="preload" href="scripts/main.js" as="script">
+    
+    <!-- 样式表 -->
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/game-board.css">
+    <link rel="stylesheet" href="styles/mobile.css">
+    
+    <!-- 基础图标 -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐉</text></svg>">
+</head>
+<body>
+    <!-- 加载屏幕 -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">🐉🐅</div>
+            <div class="loading-text">龙虎斗</div>
+            <div class="loading-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="loading-progress-fill"></div>
+                </div>
+                <div class="progress-text" id="loading-progress-text">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏容器 -->
+    <div id="game-container" class="game-container hidden">
+        <!-- 游戏头部 -->
+        <header class="game-header">
+            <div class="header-left">
+                <div class="player-info">
+                    <div class="player-avatar">👤</div>
+                    <div class="player-details">
+                        <div class="player-name">玩家</div>
+                        <div class="player-faction" id="player-faction">未确定</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <div class="game-status">
+                    <div class="current-turn" id="current-turn">点击开始游戏</div>
+                    <div class="game-phase" id="game-phase">setup</div>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="ai-info">
+                    <div class="ai-details">
+                        <div class="ai-name">AI对手</div>
+                        <div class="ai-faction" id="ai-faction">未确定</div>
+                    </div>
+                    <div class="ai-avatar">🤖</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 猜拳界面 -->
+        <div id="rock-paper-scissors" class="rps-container hidden">
+            <div class="rps-content">
+                <h2>猜拳决定先手</h2>
+                <p>选择你的出拳，胜者先行！</p>
+                <div class="rps-choices">
+                    <button class="rps-choice" data-choice="rock">
+                        <span class="rps-icon">✊</span>
+                        <span class="rps-label">石头</span>
+                    </button>
+                    <button class="rps-choice" data-choice="paper">
+                        <span class="rps-icon">✋</span>
+                        <span class="rps-label">布</span>
+                    </button>
+                    <button class="rps-choice" data-choice="scissors">
+                        <span class="rps-icon">✌️</span>
+                        <span class="rps-label">剪刀</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 猜拳结果 -->
+        <div id="rps-result" class="rps-result hidden">
+            <div class="result-content">
+                <h3>猜拳结果</h3>
+                <div class="choices-display">
+                    <div class="choice-item">
+                        <div class="choice-label">你</div>
+                        <div class="choice-icon" id="player-choice">✊</div>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="choice-item">
+                        <div class="choice-label">AI</div>
+                        <div class="choice-icon" id="ai-choice">✋</div>
+                    </div>
+                </div>
+                <div class="rps-outcome" id="rps-outcome">你赢了！</div>
+            </div>
+        </div>
+
+        <!-- 游戏主界面 -->
+        <main id="game-main" class="game-main hidden">
+            <!-- 棋盘容器 -->
+            <div class="game-board-container">
+                <div id="game-board" class="game-board"></div>
+                <div id="move-hints" class="move-hints"></div>
+            </div>
+
+            <!-- 控制面板 -->
+            <div class="control-panel">
+                <div class="game-actions">
+                    <button id="deselect-btn" class="action-button" disabled>取消选择</button>
+                    <button id="hint-btn" class="action-button">提示</button>
+                    <button id="restart-btn" class="action-button">重新开始</button>
+                </div>
+                
+                <div class="game-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">回合数</span>
+                        <span class="stat-value" id="turn-count">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">剩余牌数</span>
+                        <span class="stat-value" id="remaining-cards">16</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 游戏日志 -->
+            <div class="game-log-container">
+                <div class="log-header">
+                    <span>游戏日志</span>
+                    <button class="log-toggle" id="log-toggle">▼</button>
+                </div>
+                <div id="game-log" class="game-log"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 游戏结束模态框 -->
+    <div id="game-end-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="game-result-title">游戏结束</h3>
+                <button class="close-btn" id="game-end-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="result-icon" class="result-icon">🎉</div>
+                <div id="result-message" class="result-message">恭喜获胜！</div>
+            </div>
+            <div class="modal-footer">
+                <button class="button primary-button" id="play-again-btn">再玩一局</button>
+                <button class="button secondary-button" id="game-end-close-btn2">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div id="help-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>游戏帮助</h3>
+                <button class="close-btn" id="help-close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-content">
+                    <h4>游戏规则</h4>
+                    <ul>
+                        <li>双方各有8张卡牌：龙阵营和虎阵营</li>
+                        <li>每张卡牌有1-8的等级，等级高的击败等级低的</li>
+                        <li>相同等级的卡牌战斗会同归于尽</li>
+                        <li>特殊规则：小王虎(8级)可击败龙王(1级)，变形龙(8级)可击败虎王(1级)</li>
+                    </ul>
+                    
+                    <h4>操作方法</h4>
+                    <ul>
+                        <li>点击背面朝上的卡牌翻开</li>
+                        <li>点击己方卡牌选择</li>
+                        <li>点击相邻位置移动或攻击</li>
+                        <li>消灭对方所有卡牌获胜</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="button primary-button" id="help-modal-btn">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 开始游戏按钮 -->
+    <div id="start-screen" class="start-screen">
+        <div class="start-content">
+            <h1 class="game-title">龙虎斗</h1>
+            <p class="game-subtitle">经典策略卡牌对战</p>
+            <button id="start-game-btn" class="button primary-button">开始游戏</button>
+        </div>
+    </div>
+
+    <!-- 帮助按钮 -->
+    <button class="help-button" id="help-btn">?</button>
+
+    <!-- 错误处理 -->
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('Game Error:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled Promise Rejection:', e.reason);
+        });
+    </script>
+
+    <!-- 主脚本 -->
+    <script type="module" src="scripts/main.js"></script>
+</body>
+</html>

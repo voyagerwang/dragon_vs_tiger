@@ -1,0 +1,32 @@
+# 卡牌图片目录
+
+此目录用于存放所有卡牌图片资源，按照PRD要求的命名规范：
+
+## 龙阵营卡牌：
+- dragon_1.png - 龙王（1级）
+- dragon_2.png - 神龙（2级）
+- dragon_3.png - 金龙（3级）
+- dragon_4.png - 青龙（4级）
+- dragon_5.png - 赤龙（5级）
+- dragon_6.png - 白龙（6级）
+- dragon_7.png - 风雨龙（7级）
+- dragon_8.png - 变形龙（8级）
+
+## 虎阵营卡牌：
+- tiger_1.png - 虎王（1级）
+- tiger_2.png - 东北虎（2级）
+- tiger_3.png - 大头虎（3级）
+- tiger_4.png - 下山虎（4级）
+- tiger_5.png - 壕虎（5级）
+- tiger_6.png - 妖虎（6级）
+- tiger_7.png - 白虎（7级）
+- tiger_8.png - 小王虎（8级）
+
+## 通用资源：
+- card_back.png - 卡牌背面
+
+## 图片规格要求：
+- 格式：PNG（推荐）或JPG
+- 尺寸：建议300x300px至512x512px
+- 文件大小：单张图片不超过100KB
+- 背景：PNG格式支持透明背景

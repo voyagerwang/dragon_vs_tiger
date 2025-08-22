@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>龙虎斗 - 简化版</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .game-header {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .game-board {
+            display: grid;
+            grid-template-rows: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            margin: 20px auto;
+            width: fit-content;
+        }
+        
+        .board-cell {
+            width: 80px;
+            height: 112px;
+            background: #ecf0f1;
+            border: 2px solid #95a5a6;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .board-cell:hover:not(.empty-row) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        
+        .board-cell.empty-row {
+            background: linear-gradient(145deg, #34495e, #2c3e50);
+            border-color: #34495e;
+            cursor: default;
+            opacity: 0.7;
+        }
+        
+        .board-cell.empty-row::after {
+            content: '⚡';
+            font-size: 24px;
+            color: rgba(255,255,255,0.3);
+        }
+        
+        .card {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        
+        .card.hidden {
+            background: white url('assets/cards/card_back.png') center/cover no-repeat !important;
+            color: transparent !important;
+        }
+        
+        .card.revealed {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            color: transparent !important;
+            text-shadow: none;
+        }
+        
+        .card.revealed.dragon {
+            border: 2px solid #e74c3c;
+        }
+        
+        .card.revealed.tiger {
+            border: 2px solid #3498db;
+        }
+        
+        .card-info {
+            position: absolute;
+            bottom: 2px;
+            left: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-shadow: none;
+        }
+        
+        .card.special::before {
+            content: '⭐';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 12px;
+        }
+        
+        .card.selected {
+            box-shadow: 0 0 15px #f39c12;
+            border: 3px solid #f39c12;
+        }
+        
+        .controls {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            font-size: 18px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .log {
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🐉 龙虎斗 🐅</h1>
+        
+        <div class="game-header">
+            <div>
+                <div>👤 玩家</div>
+                <div id="player-faction">未确定</div>
+            </div>
+            <div class="status" id="game-status">点击开始游戏</div>
+            <div>
+                <div>🤖 AI对手</div>
+                <div id="ai-faction">未确定</div>
+            </div>
+        </div>
+        
+        <div id="game-board" class="game-board">
+            <!-- 棋盘格子将由JavaScript生成 -->
+        </div>
+        
+        <div class="controls">
+            <button id="start-btn" class="button">开始游戏</button>
+            <button id="restart-btn" class="button">重新开始</button>
+            <button id="hint-btn" class="button">提示</button>
+            <button id="force-player-turn" class="button">强制玩家回合</button>
+            <div class="status">回合数: <span id="turn-count">0</span> | 剩余牌数: <span id="remaining-cards">16</span></div>
+        </div>
+        
+        <div class="log" id="game-log">
+            <div>游戏日志将在这里显示...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { GameEngine } from './scripts/core/GameEngine.js';
+        
+        class SimpleGame {
+            constructor() {
+                this.gameEngine = new GameEngine();
+                this.selectedCell = null;
+                this.isPlayerTurn = false;
+                this.init();
+            }
+            
+            init() {
+                this.createBoard();
+                this.bindEvents();
+                this.log('简化版龙虎斗游戏已初始化');
+            }
+            
+            createBoard() {
+                const board = document.getElementById('game-board');
+                board.innerHTML = '';
+                
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'board-cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        
+                        if (row === 2) {
+                            cell.classList.add('empty-row');
+                        } else {
+                            cell.addEventListener('click', () => this.handleCellClick(row, col));
+                        }
+                        
+                        board.appendChild(cell);
+                    }
+                }
+            }
+            
+            bindEvents() {
+                document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+                document.getElementById('restart-btn').addEventListener('click', () => this.restartGame());
+                document.getElementById('hint-btn').addEventListener('click', () => this.showHint());
+                document.getElementById('force-player-turn').addEventListener('click', () => this.forcePlayerTurn());
+            }
+            
+            async startGame() {
+                this.log('🎮 开始新游戏...');
+                
+                try {
+                    // 开始游戏
+                    const result = this.gameEngine.startNewGame();
+                    if (!result.success) {
+                        this.log(`❌ 游戏启动失败: ${result.error?.message || '未知错误'}`);
+                        return;
+                    }
+                    this.log('✅ 游戏引擎启动成功');
+                    
+                    // 系统随机决定先手
+                    const isPlayerFirst = Math.random() < 0.5;
+                    this.gameEngine.gameState.currentPlayer = isPlayerFirst ? 'player' : 'ai';
+                    this.log(`🎯 系统分配: ${isPlayerFirst ? '玩家' : 'AI'}先手`);
+                    
+                    // 确保游戏状态正确
+                    if (this.gameEngine.gameState.phase !== 'playing') {
+                        this.log('⚠️ 游戏状态不正确，手动设置为playing');
+                        this.gameEngine.gameState.phase = 'playing';
+                    }
+                    
+                    // 初始化棋盘
+                    const boardResult = this.gameEngine.initializeBoard();
+                    if (!boardResult || !boardResult.success) {
+                        this.log(`❌ 棋盘初始化失败: ${boardResult?.error?.message || '未知错误'}`);
+                        return;
+                    }
+                    this.log('✅ 棋盘初始化成功');
+                    
+                    this.renderBoard();
+                    
+                    this.isPlayerTurn = this.gameEngine.gameState.currentPlayer === 'player';
+                    this.updateStatus();
+                    
+                    if (!this.isPlayerTurn) {
+                        setTimeout(() => this.executeAITurn(), 1000);
+                    }
+                    
+                    this.log(`🎮 游戏准备完毕! 现在是${this.isPlayerTurn ? '玩家' : 'AI'}回合`);
+                } catch (error) {
+                    this.log(`❌ 启动游戏时发生错误: ${error.message}`);
+                    console.error('Game start error:', error);
+                }
+            }
+            
+            renderBoard() {
+                const gameState = this.gameEngine.gameState;
+                this.log(`🎨 开始渲染棋盘，总共有${gameState.cardsData.length}张卡牌`);
+                
+                let renderedCards = 0;
+                
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        if (row === 2) continue;
+                        
+                        const cell = this.getCell(row, col);
+                        const card = gameState.getCardAt(row, col);
+                        
+                        cell.innerHTML = '';
+                        
+                        if (card) {
+                            renderedCards++;
+                            const cardElement = document.createElement('div');
+                            cardElement.className = 'card';
+                            
+                            if (card.isRevealed) {
+                                cardElement.classList.add('revealed', card.faction);
+                                
+                                // 设置正面图片 (添加时间戳防止缓存)
+                                const imagePath = `assets/cards/${card.faction}_${card.level}.png?t=${Date.now()}`;
+                                cardElement.style.backgroundImage = `url('${imagePath}')`;
+                                
+                                this.log(`🃏 渲染已翻开卡牌: ${card.name} at (${row}, ${col})`);
+                                
+                                // 创建卡牌信息覆盖层
+                                const infoDiv = document.createElement('div');
+                                infoDiv.className = 'card-info';
+                                infoDiv.textContent = card.name;
+                                cardElement.appendChild(infoDiv);
+                                
+                                if (card.level === 1 || card.level === 8) {
+                                    cardElement.classList.add('special');
+                                }
+                            } else {
+                                cardElement.classList.add('hidden');
+                                // 确保背面图片显示
+                                const backImagePath = `assets/cards/card_back.png?t=${Date.now()}`;
+                                cardElement.style.backgroundImage = `url('${backImagePath}')`;
+                                
+                                this.log(`🎴 渲染背面卡牌 at (${row}, ${col})`);
+                            }
+                            
+                            cell.appendChild(cardElement);
+                        } else {
+                            this.log(`⚪ 位置 (${row}, ${col}) 没有卡牌`);
+                        }
+                    }
+                }
+                
+                this.log(`🎨 棋盘渲染完成，共渲染了${renderedCards}张卡牌`);
+                this.updateStats();
+            }
+            
+            handleCellClick(row, col) {
+                this.log(`🔍 点击了位置 (${row}, ${col})`);
+                
+                if (!this.isPlayerTurn) {
+                    this.log('⚠️ 现在是AI的回合，请等待');
+                    return;
+                }
+                
+                const gameState = this.gameEngine.gameState;
+                const card = gameState.getCardAt(row, col);
+                
+                if (!card) {
+                    this.log('⚠️ 这里没有卡牌');
+                    return;
+                }
+                
+                this.log(`🃏 卡牌状态: ${card.isRevealed ? '已翻开' : '背面朝上'}`);
+                
+                if (!card.isRevealed) {
+                    // 翻牌
+                    this.log('🎯 尝试翻牌...');
+                    const result = this.gameEngine.flipCard(row, col);
+                    if (result.success) {
+                        this.log(`✅ 翻开了 ${result.data.flippedCard.name} (${result.data.flippedCard.faction})`);
+                        this.renderBoard();
+                        this.updateStatus();
+                        
+                        // 检查是否是第一次翻牌（决定阵营）
+                        if (!gameState.playerFaction) {
+                            this.log(`🏆 你的阵营确定为: ${result.data.flippedCard.faction === 'dragon' ? '龙' : '虎'}`);
+                        }
+                        
+                        this.endPlayerTurn();
+                    } else {
+                        this.log(`❌ 翻牌失败: ${result.error.message}`);
+                    }
+                } else if (card.faction === gameState.playerFaction) {
+                    // 选择己方卡牌
+                    this.log(`🎯 选择己方卡牌: ${card.name}`);
+                    this.selectCard(row, col);
+                } else if (this.selectedCell) {
+                    // 攻击敌方卡牌
+                    this.log(`⚔️ 尝试攻击敌方卡牌: ${card.name}`);
+                    this.attemptMove(row, col);
+                } else {
+                    this.log('💡 请先选择己方卡牌，然后再攻击敌方卡牌');
+                }
+            }
+            
+            selectCard(row, col) {
+                // 清除之前的选择
+                if (this.selectedCell) {
+                    this.selectedCell.classList.remove('selected');
+                }
+                
+                const cell = this.getCell(row, col);
+                cell.classList.add('selected');
+                this.selectedCell = cell;
+                
+                this.log(`🎯 选择了位置 (${row}, ${col}) 的卡牌`);
+            }
+            
+            attemptMove(toRow, toCol) {
+                if (!this.selectedCell) return;
+                
+                const fromRow = parseInt(this.selectedCell.dataset.row);
+                const fromCol = parseInt(this.selectedCell.dataset.col);
+                
+                const result = this.gameEngine.moveCard(fromRow, fromCol, toRow, toCol);
+                
+                if (result.success) {
+                    this.log(`🚀 移动成功: ${result.data.moveType}`);
+                    this.selectedCell.classList.remove('selected');
+                    this.selectedCell = null;
+                    this.renderBoard();
+                    this.updateStatus();
+                    
+                    if (!result.data.isGameOver) {
+                        this.endPlayerTurn();
+                    }
+                } else {
+                    this.log(`❌ 移动失败: ${result.error.message}`);
+                }
+            }
+            
+            endPlayerTurn() {
+                this.log('🔄 结束玩家回合');
+                this.isPlayerTurn = false;
+                this.log(`🕒 1.5秒后将执行AI回合...`);
+                setTimeout(() => {
+                    this.log('⏰ 定时器触发，准备执行AI回合');
+                    this.executeAITurn();
+                }, 1500);
+            }
+            
+            async executeAITurn() {
+                this.log(`🔍 检查AI回合条件: currentPlayer = ${this.gameEngine.gameState.currentPlayer}, isPlayerTurn = ${this.isPlayerTurn}`);
+                
+                if (this.gameEngine.gameState.currentPlayer !== 'ai') {
+                    this.log(`❌ 不是AI回合，当前玩家: ${this.gameEngine.gameState.currentPlayer}`);
+                    return;
+                }
+                
+                this.log('🤖 AI正在思考...');
+                
+                try {
+                    const result = await this.gameEngine.executeAITurn();
+                    
+                    // 详细调试信息
+                    this.log(`🔍 AI执行结果: ${JSON.stringify(result, null, 2)}`);
+                    
+                    if (result.success) {
+                        this.log(`🤖 AI执行了${result.data.action}操作`);
+                        this.renderBoard();
+                        this.updateStatus();
+                        
+                        if (!result.data.isGameOver) {
+                            this.isPlayerTurn = true;
+                        }
+                    } else {
+                        // 更详细的错误处理
+                        console.error('AI执行完整错误对象:', result);
+                        
+                        let errorMessage = 'AI执行失败';
+                        if (result.error) {
+                            if (typeof result.error === 'string') {
+                                errorMessage = result.error;
+                            } else if (result.error.message) {
+                                errorMessage = result.error.message;
+                            } else if (result.error.code) {
+                                errorMessage = `错误代码: ${result.error.code}`;
+                            } else {
+                                errorMessage = `未知错误 (类型: ${typeof result.error})`;
+                                console.error('Error object contents:', result.error);
+                            }
+                        }
+                        
+                        this.log(`❌ AI执行失败: ${errorMessage}`);
+                        
+                        if (result.error && result.error.details) {
+                            console.error('AI Error Details:', result.error.details);
+                        }
+                        
+                        // 强制切换到玩家回合，避免卡住
+                        this.log('🔧 强制切换到玩家回合');
+                        this.isPlayerTurn = true;
+                        this.gameEngine.gameState.currentPlayer = 'player';
+                        this.updateStatus();
+                    }
+                } catch (error) {
+                    this.log(`❌ AI执行异常: ${error.message}`);
+                    console.error('AI执行异常:', error);
+                    // 强制切换到玩家回合
+                    this.log('🔧 强制切换到玩家回合');
+                    this.isPlayerTurn = true;
+                    this.gameEngine.gameState.currentPlayer = 'player';
+                    this.updateStatus();
+                }
+            }
+            
+            getCell(row, col) {
+                return document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            }
+            
+            updateStatus() {
+                const gameState = this.gameEngine.gameState;
+                const status = document.getElementById('game-status');
+                const playerFaction = document.getElementById('player-faction');
+                const aiFaction = document.getElementById('ai-faction');
+                
+                if (gameState.winner) {
+                    status.textContent = `游戏结束 - ${gameState.winner === 'player' ? '玩家' : 'AI'}获胜!`;
+                } else {
+                    status.textContent = `${gameState.currentPlayer === 'player' ? '你的' : 'AI的'}回合`;
+                }
+                
+                playerFaction.textContent = gameState.playerFaction ? 
+                    (gameState.playerFaction === 'dragon' ? '龙阵营' : '虎阵营') : '未确定';
+                aiFaction.textContent = gameState.aiFaction ? 
+                    (gameState.aiFaction === 'dragon' ? '龙阵营' : '虎阵营') : '未确定';
+            }
+            
+            updateStats() {
+                const gameState = this.gameEngine.gameState;
+                const revealedCount = gameState.cardsData.filter(card => card.isRevealed).length;
+                
+                document.getElementById('remaining-cards').textContent = 16 - revealedCount;
+                document.getElementById('turn-count').textContent = gameState.gameLog.length;
+            }
+            
+            showHint() {
+                if (!this.isPlayerTurn) {
+                    this.log('💡 现在是AI的回合，请等待');
+                    return;
+                }
+                
+                const gameState = this.gameEngine.gameState;
+                
+                if (!gameState.playerFaction) {
+                    this.log('💡 点击任意背面朝上的卡牌来翻开它，第一张翻开的卡牌将决定你的阵营');
+                } else {
+                    this.log('💡 点击己方卡牌选择，然后点击相邻位置移动或攻击敌方卡牌');
+                }
+            }
+            
+            forcePlayerTurn() {
+                if (this.gameEngine && this.gameEngine.gameState) {
+                    this.gameEngine.gameState.currentPlayer = 'player';
+                    this.isPlayerTurn = true;
+                    this.log('🔧 强制设置为玩家回合');
+                    this.updateStatus();
+                } else {
+                    this.log('⚠️ 请先开始游戏');
+                }
+            }
+            
+            restartGame() {
+                this.gameEngine = new GameEngine();
+                this.selectedCell = null;
+                this.isPlayerTurn = false;
+                this.createBoard();
+                this.log('🔄 游戏已重启');
+                document.getElementById('game-status').textContent = '点击开始游戏';
+                document.getElementById('player-faction').textContent = '未确定';
+                document.getElementById('ai-faction').textContent = '未确定';
+            }
+            
+            log(message) {
+                const logElement = document.getElementById('game-log');
+                const time = new Date().toLocaleTimeString();
+                logElement.innerHTML += `<div>[${time}] ${message}</div>`;
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+        }
+        
+        // 启动游戏
+        window.addEventListener('DOMContentLoaded', () => {
+            window.simpleGame = new SimpleGame();
+        });
+    </script>
+</body>
+</html>
