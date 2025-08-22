@@ -187,15 +187,18 @@ export class GameEngine {
      * 翻牌操作
      * @param {number} row - 行索引
      * @param {number} col - 列索引
+     * @param {string} player - 执行翻牌的玩家 ('player' 或 'ai')，可选，默认为当前玩家
      * @returns {Object} 翻牌结果
      */
-    flipCard(row, col) {
+    flipCard(row, col, player = null) {
         // 验证游戏状态
         if (this.gameState.phase !== 'playing') {
             return this.createError('INVALID_GAME_PHASE');
         }
 
-        if (this.gameState.currentPlayer !== 'player') {
+        // 如果指定了player参数，使用指定的玩家；否则检查当前玩家
+        const expectedPlayer = player || this.gameState.currentPlayer;
+        if (this.gameState.currentPlayer !== expectedPlayer) {
             return this.createError('NOT_YOUR_TURN');
         }
 
@@ -215,7 +218,7 @@ export class GameEngine {
 
         try {
             // 翻开卡牌
-            card.reveal('player');
+            card.reveal();
             
             // 如果是首次翻牌，确定阵营
             let factionAssigned = false;
@@ -223,8 +226,15 @@ export class GameEngine {
                 this.gameState.setPlayerFaction(card.faction);
                 factionAssigned = true;
             }
+            
+            // 根据卡牌阵营设置归属，而不是根据翻开者
+            if (card.faction === this.gameState.playerFaction) {
+                card.owner = 'player';
+            } else {
+                card.owner = 'ai';
+            }
 
-            this.gameState.addLogEntry('flip', 'player', '翻开卡牌', {
+            this.gameState.addLogEntry('flip', expectedPlayer, '翻开卡牌', {
                 cardId: card.id,
                 cardName: card.name,
                 position: { row, col },
@@ -338,14 +348,17 @@ export class GameEngine {
      * @param {number} fromCol - 起始列
      * @param {number} toRow - 目标行
      * @param {number} toCol - 目标列
+     * @param {string} player - 执行移动的玩家 ('player' 或 'ai')，可选，默认为当前玩家
      * @returns {Object} 移动结果
      */
-    moveCard(fromRow, fromCol, toRow, toCol) {
+    moveCard(fromRow, fromCol, toRow, toCol, player = null) {
         if (this.gameState.phase !== 'playing') {
             return this.createError('INVALID_GAME_PHASE');
         }
 
-        if (this.gameState.currentPlayer !== 'player') {
+        // 如果指定了player参数，使用指定的玩家；否则检查当前玩家
+        const expectedPlayer = player || this.gameState.currentPlayer;
+        if (this.gameState.currentPlayer !== expectedPlayer) {
             return this.createError('NOT_YOUR_TURN');
         }
 
@@ -356,6 +369,17 @@ export class GameEngine {
 
         try {
             const movingCard = this.gameState.getCardAt(fromRow, fromCol);
+            
+            // 验证卡牌归属 - 只能移动自己的卡牌
+            if (expectedPlayer === 'player') {
+                if (movingCard.faction !== this.gameState.playerFaction) {
+                    return this.createError('CANNOT_MOVE_OPPONENT_CARD');
+                }
+            } else if (expectedPlayer === 'ai') {
+                if (movingCard.faction !== this.gameState.aiFaction) {
+                    return this.createError('CANNOT_MOVE_OPPONENT_CARD');
+                }
+            }
             const targetCard = this.gameState.getCardAt(toRow, toCol);
             
             let moveResult = {
@@ -380,7 +404,7 @@ export class GameEngine {
             }
 
             // 记录移动日志
-            this.gameState.addLogEntry('move', 'player', '移动卡牌', {
+            this.gameState.addLogEntry('move', expectedPlayer, '移动卡牌', {
                 from: { row: fromRow, col: fromCol },
                 to: { row: toRow, col: toCol },
                 cardId: movingCard.id,
@@ -434,6 +458,9 @@ export class GameEngine {
     processBattleResult(battleResult, fromRow, fromCol, toRow, toCol) {
         const { winner, eliminatedCards } = battleResult;
 
+        // 先获取攻击方卡牌，避免被提前移除
+        const attackerCard = this.gameState.getCardAt(fromRow, fromCol);
+
         // 移除被消灭的卡牌
         eliminatedCards.forEach(card => {
             const pos = card.position;
@@ -443,12 +470,15 @@ export class GameEngine {
         // 根据战斗结果处理存活的卡牌
         if (winner === 'attacker') {
             // 攻击方获胜，移动到目标位置
-            const attackerCard = this.gameState.getCardAt(fromRow, fromCol);
-            this.gameState.removeCardAt(fromRow, fromCol);
-            this.gameState.placeCard(attackerCard, toRow, toCol);
+            if (attackerCard && !eliminatedCards.includes(attackerCard)) {
+                this.gameState.removeCardAt(fromRow, fromCol);
+                this.gameState.placeCard(attackerCard, toRow, toCol);
+            }
         } else if (winner === 'defender') {
-            // 防守方获胜，攻击方被移除
-            this.gameState.removeCardAt(fromRow, fromCol);
+            // 防守方获胜，攻击方被移除（如果还没被移除）
+            if (attackerCard && !eliminatedCards.includes(attackerCard)) {
+                this.gameState.removeCardAt(fromRow, fromCol);
+            }
         }
         // 如果是平局(draw)，双方都已在eliminatedCards中处理
     }
@@ -572,10 +602,8 @@ export class GameEngine {
             const winCheck = this.checkWinCondition();
             if (winCheck.isGameOver) {
                 this.endGame(winCheck.winner, winCheck.reason);
-            } else {
-                // 切换回合
-                this.gameState.switchPlayer();
             }
+            // 注意：不需要在这里切换回合，因为具体的操作（如flipCard）已经处理了回合切换
 
             const result = {
                 success: true,

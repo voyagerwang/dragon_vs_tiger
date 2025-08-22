@@ -112,13 +112,29 @@ export class BattleResolver {
         const attackerLevel = attackerCard.level;
         const defenderLevel = defenderCard.level;
 
-        if (attackerLevel > defenderLevel) {
+        // 基础规则：1>2>3>4>5>6>7>8，但1不能吃8（8可以吃1在特殊规则中处理）
+        if (attackerLevel === 1 && defenderLevel === 8) {
+            // 1级不能吃8级，防守方获胜
+            return {
+                winner: 'defender',
+                reason: `基础规则：${attackerCard.name}(${attackerLevel}级) 无法击败 ${defenderCard.name}(${defenderLevel}级)`,
+                eliminatedCards: [attackerCard]
+            };
+        } else if (attackerLevel === 8 && defenderLevel === 1) {
+            // 8级不能通过基础规则吃1级，防守方获胜（特殊规则另外处理）
+            return {
+                winner: 'defender',
+                reason: `基础规则：${attackerCard.name}(${attackerLevel}级) 无法击败 ${defenderCard.name}(${defenderLevel}级)`,
+                eliminatedCards: [attackerCard]
+            };
+        } else if (attackerLevel < defenderLevel) {
+            // 等级越低越强
             return {
                 winner: 'attacker',
                 reason: `等级优势：${attackerCard.name}(${attackerLevel}级) 击败 ${defenderCard.name}(${defenderLevel}级)`,
                 eliminatedCards: [defenderCard]
             };
-        } else if (attackerLevel < defenderLevel) {
+        } else if (attackerLevel > defenderLevel) {
             return {
                 winner: 'defender',
                 reason: `等级优势：${defenderCard.name}(${defenderLevel}级) 击败 ${attackerCard.name}(${attackerLevel}级)`,

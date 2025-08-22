@@ -64,14 +64,32 @@
         .board-cell.empty-row {
             background: linear-gradient(145deg, #34495e, #2c3e50);
             border-color: #34495e;
-            cursor: default;
+            cursor: pointer;
             opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+        
+        .board-cell.empty-row:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(52, 73, 94, 0.4);
+        }
+        
+        .board-cell.empty-row.valid-move {
+            border: 2px solid #3498db;
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            opacity: 0.8;
         }
         
         .board-cell.empty-row::after {
             content: '⚡';
             font-size: 24px;
             color: rgba(255,255,255,0.3);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
         
         .card {
@@ -249,9 +267,10 @@
                         
                         if (row === 2) {
                             cell.classList.add('empty-row');
-                        } else {
-                            cell.addEventListener('click', () => this.handleCellClick(row, col));
                         }
+                        
+                        // 所有格子都可以点击
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
                         
                         board.appendChild(cell);
                     }
@@ -320,12 +339,16 @@
                 
                 for (let row = 0; row < 5; row++) {
                     for (let col = 0; col < 4; col++) {
-                        if (row === 2) continue;
-                        
                         const cell = this.getCell(row, col);
                         const card = gameState.getCardAt(row, col);
                         
                         cell.innerHTML = '';
+                        
+                        // 第三行(row=2)是战场区域，如果有卡牌则正常渲染
+                        if (row === 2 && !card) {
+                            this.log(`⚡ 第三行战场区域 (${row}, ${col}) - 空白区域`);
+                            continue;
+                        }
                         
                         if (card) {
                             renderedCards++;
@@ -382,13 +405,25 @@
                 const card = gameState.getCardAt(row, col);
                 
                 if (!card) {
-                    this.log('⚠️ 这里没有卡牌');
+                    // 点击空位 - 如果有选中的卡牌，尝试移动到此处
+                    if (this.selectedCell) {
+                        this.log(`🎯 尝试移动到空位 (${row}, ${col})`);
+                        this.attemptMove(row, col);
+                    } else {
+                        this.log('⚠️ 这里没有卡牌');
+                    }
                     return;
                 }
                 
                 this.log(`🃏 卡牌状态: ${card.isRevealed ? '已翻开' : '背面朝上'}`);
                 
                 if (!card.isRevealed) {
+                    // 如果有选中的卡牌，取消选择
+                    if (this.selectedCell) {
+                        this.selectedCell.classList.remove('selected');
+                        this.selectedCell = null;
+                    }
+                    
                     // 翻牌
                     this.log('🎯 尝试翻牌...');
                     const result = this.gameEngine.flipCard(row, col);
@@ -398,7 +433,7 @@
                         this.updateStatus();
                         
                         // 检查是否是第一次翻牌（决定阵营）
-                        if (!gameState.playerFaction) {
+                        if (result.data.factionAssigned) {
                             this.log(`🏆 你的阵营确定为: ${result.data.flippedCard.faction === 'dragon' ? '龙' : '虎'}`);
                         }
                         
@@ -487,7 +522,9 @@
                         this.updateStatus();
                         
                         if (!result.data.isGameOver) {
-                            this.isPlayerTurn = true;
+                            // 根据游戏状态正确设置回合
+                            this.isPlayerTurn = result.data.gameState.currentPlayer === 'player';
+                            this.log(`🔄 AI操作后，当前回合: ${this.isPlayerTurn ? '玩家' : 'AI'}`);
                         }
                     } else {
                         // 更详细的错误处理

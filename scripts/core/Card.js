@@ -116,10 +116,17 @@ export class Card {
       return 'win';
     }
 
-    // 基础规则：等级比较
-    if (this.level > otherCard.level) {
-      return 'win';
+    // 基础规则：1>2>3>4>5>6>7>8，但1不能吃8（8可以吃1在特殊规则中处理）
+    if (this.level === 1 && otherCard.level === 8) {
+      // 1级不能吃8级
+      return 'lose';
+    } else if (this.level === 8 && otherCard.level === 1) {
+      // 8级不能通过基础规则吃1级
+      return 'lose';
     } else if (this.level < otherCard.level) {
+      // 等级越低越强
+      return 'win';
+    } else if (this.level > otherCard.level) {
       return 'lose';
     } else {
       return 'draw'; // 同归于尽

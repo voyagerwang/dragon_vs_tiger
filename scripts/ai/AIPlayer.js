@@ -353,7 +353,9 @@ export class AIPlayer {
                 const battleResult = card.battleWith(targetCard);
                 
                 if (battleResult === 'win') {
-                    score += 10 + targetCard.level; // 基础分 + 目标等级
+                    // 修复：击败高等级卡牌（低数字）获得更高分数
+                    // 1级=8分，2级=7分，3级=6分...8级=1分
+                    score += 10 + (9 - targetCard.level);
                     confidence = 0.9;
                     reasoning.push(`击败${targetCard.name}(${targetCard.level}级)`);
                     canWin = true;
@@ -367,12 +369,15 @@ export class AIPlayer {
                     }
                     
                 } else if (battleResult === 'lose') {
-                    score -= 15 + card.level; // 重大损失
+                    // 修复：被高等级卡牌击败损失更大
+                    // 1级=8分损失，2级=7分损失...8级=1分损失
+                    score -= 15 + (9 - card.level);
                     confidence = 0.1;
                     reasoning.push(`会被${targetCard.name}击败`);
                     
                 } else { // draw
-                    score += targetCard.level - card.level; // 相对价值
+                    // 修复：相对价值计算，等级越低价值越高
+                    score += (9 - targetCard.level) - (9 - card.level);
                     confidence = 0.6;
                     reasoning.push('同归于尽');
                 }
@@ -413,7 +418,16 @@ export class AIPlayer {
         // 优先选择能获胜的攻击
         const winningAttacks = moveOptions.filter(move => move.canWin);
         if (winningAttacks.length > 0) {
-            return this.strategy.selectFromWinningMoves(winningAttacks);
+            // 修复：在获胜攻击中，优先选择击败高等级卡牌（低数字）的攻击
+            const bestAttack = winningAttacks.reduce((best, current) => {
+                const targetCard = this.gameEngine.gameState.getCardAt(current.to.row, current.to.col);
+                if (targetCard && targetCard.level < best.targetLevel) { // 等级越低越强
+                    return { ...current, targetLevel: targetCard.level };
+                }
+                return best;
+            }, { targetLevel: 9 }); // 初始化为最高等级
+            
+            return bestAttack;
         }
         
         // 其次选择高分移动
@@ -527,7 +541,8 @@ export class AIPlayer {
             case 'flip':
                 return this.gameEngine.flipCard(
                     decision.position.row, 
-                    decision.position.col
+                    decision.position.col,
+                    'ai'  // 明确指定是AI在翻牌
                 );
                 
             case 'move':
@@ -535,7 +550,8 @@ export class AIPlayer {
                     decision.from.row, 
                     decision.from.col,
                     decision.to.row, 
-                    decision.to.col
+                    decision.to.col,
+                    'ai'  // 明确指定是AI在移动卡牌
                 );
                 
             case 'wait':
@@ -755,8 +771,9 @@ export class AIPlayer {
         const aiCards = this.getAIRevealedCards();
         const playerCards = gameState.getRevealedCards('player');
         
-        const aiValue = aiCards.reduce((sum, card) => sum + card.level, 0);
-        const playerValue = playerCards.reduce((sum, card) => sum + card.level, 0);
+        // 修复：等级越低越强，所以用(9-等级)计算价值
+        const aiValue = aiCards.reduce((sum, card) => sum + (9 - card.level), 0);
+        const playerValue = playerCards.reduce((sum, card) => sum + (9 - card.level), 0);
         
         return aiValue - playerValue;
     }

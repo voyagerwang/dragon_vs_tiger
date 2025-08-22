@@ -122,7 +122,8 @@ export class GameState {
     
     const card = this.board[row][col];
     if (card && card instanceof Card) {
-      this.board[row][col] = row === 2 ? null : undefined;
+      // 统一设置为null，避免undefined和null混用导致状态不一致
+      this.board[row][col] = null;
       card.setPosition(-1, -1);
       return card;
     }
@@ -206,21 +207,37 @@ export class GameState {
    * @returns {Object} 胜负检查结果
    */
   checkWinCondition() {
-    const playerCards = this.getRevealedCards('player');
-    const aiCards = this.getRevealedCards('ai');
+    // 如果阵营还未确定，游戏继续
+    if (!this.playerFaction || !this.aiFaction) {
+      return { isGameOver: false, winner: null, reason: '游戏继续' };
+    }
+    
+    // 获取所有存活的卡牌（在棋盘上且未被消灭的）
+    const allPlayerCards = this.cardsData.filter(card => 
+      card.position.row >= 0 && card.position.col >= 0 && 
+      (card.faction === this.playerFaction)
+    );
+    const allAICards = this.cardsData.filter(card => 
+      card.position.row >= 0 && card.position.col >= 0 && 
+      (card.faction === this.aiFaction)
+    );
+    
+    // 获取已翻开的卡牌
+    const revealedPlayerCards = this.getRevealedCards('player');
+    const revealedAICards = this.getRevealedCards('ai');
     const unrevealedPositions = this.getUnrevealedPositions();
     
-    // 一方全部卡牌被消灭
-    if (playerCards.length === 0 && aiCards.length === 0) {
+    // 一方全部卡牌被消灭（基于存活卡牌数量，而不是已翻开的卡牌）
+    if (allPlayerCards.length === 0 && allAICards.length === 0) {
       return { isGameOver: true, winner: 'draw', reason: '双方同归于尽' };
-    } else if (playerCards.length === 0) {
+    } else if (allPlayerCards.length === 0) {
       return { isGameOver: true, winner: 'ai', reason: '玩家卡牌全部被消灭' };
-    } else if (aiCards.length === 0) {
+    } else if (allAICards.length === 0) {
       return { isGameOver: true, winner: 'player', reason: 'AI卡牌全部被消灭' };
     }
     
-    // 最终对决：各剩一张牌
-    if (playerCards.length === 1 && aiCards.length === 1 && unrevealedPositions.length === 0) {
+    // 最终对决：各剩一张已翻开的牌，且没有未翻开的牌
+    if (revealedPlayerCards.length === 1 && revealedAICards.length === 1 && unrevealedPositions.length === 0) {
       return { isGameOver: true, winner: null, reason: '最终对决阶段' };
     }
     
@@ -342,14 +359,7 @@ export class GameState {
     );
   }
 
-  /**
-   * 设置玩家阵营
-   * @param {string} faction - 阵营名称
-   */
-  setPlayerFaction(faction) {
-    this.playerFaction = faction;
-    this.aiFaction = faction === 'dragon' ? 'tiger' : 'dragon';
-  }
+
 
   /**
    * 切换当前玩家
