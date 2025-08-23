@@ -28,6 +28,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         
         .game-board {
@@ -81,14 +83,15 @@
             opacity: 0.8;
         }
         
+        /* 去掉第三行的蒙层效果 */
         .board-cell.empty-row::after {
-            content: '⚡';
-            font-size: 24px;
-            color: rgba(255,255,255,0.3);
+            content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: transparent;
             pointer-events: none;
         }
         
@@ -186,6 +189,14 @@
             transform: none;
         }
         
+        .button.surrender {
+            background: #e74c3c;
+        }
+        
+        .button.surrender:hover {
+            background: #c0392b;
+        }
+        
         .status {
             font-size: 18px;
             margin: 10px 0;
@@ -201,6 +212,64 @@
             overflow-y: auto;
             font-size: 12px;
             text-align: left;
+        }
+        
+        /* 手机端适配 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .game-container {
+                max-width: 100%;
+            }
+            
+            .game-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .game-board {
+                gap: 4px;
+                padding: 10px;
+            }
+            
+            .board-cell {
+                width: 60px;
+                height: 84px;
+            }
+            
+            .button {
+                padding: 10px 20px;
+                font-size: 12px;
+                margin: 3px;
+            }
+            
+            .controls {
+                padding: 10px;
+            }
+            
+            .log {
+                max-height: 100px;
+                font-size: 11px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .board-cell {
+                width: 50px;
+                height: 70px;
+            }
+            
+            .button {
+                padding: 8px 16px;
+                font-size: 11px;
+                margin: 2px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
@@ -228,7 +297,7 @@
             <button id="start-btn" class="button">开始游戏</button>
             <button id="restart-btn" class="button">重新开始</button>
             <button id="hint-btn" class="button">提示</button>
-            <button id="force-player-turn" class="button">强制玩家回合</button>
+            <button id="surrender-btn" class="button surrender">认输</button>
             <div class="status">回合数: <span id="turn-count">0</span> | 剩余牌数: <span id="remaining-cards">16</span></div>
         </div>
         
@@ -281,7 +350,7 @@
                 document.getElementById('start-btn').addEventListener('click', () => this.startGame());
                 document.getElementById('restart-btn').addEventListener('click', () => this.restartGame());
                 document.getElementById('hint-btn').addEventListener('click', () => this.showHint());
-                document.getElementById('force-player-turn').addEventListener('click', () => this.forcePlayerTurn());
+                document.getElementById('surrender-btn').addEventListener('click', () => this.surrender());
             }
             
             async startGame() {
@@ -580,7 +649,7 @@
                 if (gameState.winner) {
                     status.textContent = `游戏结束 - ${gameState.winner === 'player' ? '玩家' : 'AI'}获胜!`;
                 } else {
-                    status.textContent = `${gameState.currentPlayer === 'player' ? '你的' : 'AI的'}回合`;
+                    status.textContent = `${gameState.currentPlayer === 'player' ? '你的' : 'AI'}回合`;
                 }
                 
                 playerFaction.textContent = gameState.playerFaction ? 
@@ -612,12 +681,12 @@
                 }
             }
             
-            forcePlayerTurn() {
+            surrender() {
                 if (this.gameEngine && this.gameEngine.gameState) {
-                    this.gameEngine.gameState.currentPlayer = 'player';
-                    this.isPlayerTurn = true;
-                    this.log('🔧 强制设置为玩家回合');
+                    this.gameEngine.gameState.winner = 'ai';
+                    this.log('🏳️ 玩家认输，AI获胜！');
                     this.updateStatus();
+                    this.isPlayerTurn = false;
                 } else {
                     this.log('⚠️ 请先开始游戏');
                 }
