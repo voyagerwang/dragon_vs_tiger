@@ -22,14 +22,14 @@
         
         .game-header {
             background: rgba(255,255,255,0.1);
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
         }
         
         .game-board {
@@ -159,6 +159,41 @@
             border: 3px solid #f39c12;
         }
         
+        .start-game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .start-game-modal {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .start-game-modal h2 {
+            margin: 0 0 20px 0;
+            font-size: 28px;
+            color: white;
+        }
+        
+        .start-game-modal p {
+            margin: 0 0 30px 0;
+            color: rgba(255,255,255,0.9);
+            line-height: 1.5;
+        }
+        
         .controls {
             background: rgba(255,255,255,0.1);
             padding: 15px;
@@ -197,6 +232,16 @@
             background: #c0392b;
         }
         
+        .button.start-game {
+            background: #27ae60;
+            font-size: 18px;
+            padding: 15px 30px;
+        }
+        
+        .button.start-game:hover {
+            background: #229954;
+        }
+        
         .status {
             font-size: 18px;
             margin: 10px 0;
@@ -226,17 +271,23 @@
             
             .game-header {
                 flex-direction: column;
-                gap: 15px;
+                gap: 10px;
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .game-header > div {
+                font-size: 14px;
             }
             
             .game-board {
-                gap: 4px;
-                padding: 10px;
+                gap: 6px;
+                padding: 15px;
             }
             
             .board-cell {
-                width: 60px;
-                height: 84px;
+                width: 70px;
+                height: 98px;
             }
             
             .button {
@@ -253,12 +304,20 @@
                 max-height: 100px;
                 font-size: 11px;
             }
+            
+            .start-game-modal {
+                padding: 30px 20px;
+            }
+            
+            .start-game-modal h2 {
+                font-size: 24px;
+            }
         }
         
         @media (max-width: 480px) {
             .board-cell {
-                width: 50px;
-                height: 70px;
+                width: 65px;
+                height: 91px;
             }
             
             .button {
@@ -269,6 +328,10 @@
             
             h1 {
                 font-size: 24px;
+            }
+            
+            .game-header > div {
+                font-size: 12px;
             }
         }
     </style>
@@ -282,7 +345,7 @@
                 <div>👤 玩家</div>
                 <div id="player-faction">未确定</div>
             </div>
-            <div class="status" id="game-status">点击开始游戏</div>
+            <div class="status" id="game-status">游戏准备中</div>
             <div>
                 <div>🤖 AI对手</div>
                 <div id="ai-faction">未确定</div>
@@ -294,7 +357,6 @@
         </div>
         
         <div class="controls">
-            <button id="start-btn" class="button">开始游戏</button>
             <button id="restart-btn" class="button">重新开始</button>
             <button id="hint-btn" class="button">提示</button>
             <button id="surrender-btn" class="button surrender">认输</button>
@@ -303,6 +365,15 @@
         
         <div class="log" id="game-log">
             <div>游戏日志将在这里显示...</div>
+        </div>
+    </div>
+    
+    <!-- 开始游戏遮罩层 -->
+    <div id="start-game-overlay" class="start-game-overlay">
+        <div class="start-game-modal">
+            <h2>🐉 龙虎斗 🐅</h2>
+            <p>欢迎来到龙虎斗游戏！<br>点击开始按钮开始游戏</p>
+            <button id="start-btn" class="button start-game">开始游戏</button>
         </div>
     </div>
 
@@ -314,12 +385,14 @@
                 this.gameEngine = new GameEngine();
                 this.selectedCell = null;
                 this.isPlayerTurn = false;
+                this.gameStarted = false;
                 this.init();
             }
             
             init() {
                 this.createBoard();
                 this.bindEvents();
+                this.renderBoard(); // 默认显示卡牌背面
                 this.log('简化版龙虎斗游戏已初始化');
             }
             
@@ -387,7 +460,11 @@
                     this.renderBoard();
                     
                     this.isPlayerTurn = this.gameEngine.gameState.currentPlayer === 'player';
+                    this.gameStarted = true;
                     this.updateStatus();
+                    
+                    // 隐藏开始游戏遮罩层
+                    document.getElementById('start-game-overlay').style.display = 'none';
                     
                     if (!this.isPlayerTurn) {
                         setTimeout(() => this.executeAITurn(), 1000);
@@ -463,6 +540,11 @@
             }
             
             handleCellClick(row, col) {
+                if (!this.gameStarted) {
+                    this.log('⚠️ 请先开始游戏');
+                    return;
+                }
+                
                 this.log(`🔍 点击了位置 (${row}, ${col})`);
                 
                 if (!this.isPlayerTurn) {
@@ -667,6 +749,11 @@
             }
             
             showHint() {
+                if (!this.gameStarted) {
+                    this.log('💡 请先开始游戏');
+                    return;
+                }
+                
                 if (!this.isPlayerTurn) {
                     this.log('💡 现在是AI的回合，请等待');
                     return;
@@ -682,13 +769,16 @@
             }
             
             surrender() {
+                if (!this.gameStarted) {
+                    this.log('⚠️ 请先开始游戏');
+                    return;
+                }
+                
                 if (this.gameEngine && this.gameEngine.gameState) {
                     this.gameEngine.gameState.winner = 'ai';
                     this.log('🏳️ 玩家认输，AI获胜！');
                     this.updateStatus();
                     this.isPlayerTurn = false;
-                } else {
-                    this.log('⚠️ 请先开始游戏');
                 }
             }
             
@@ -696,11 +786,16 @@
                 this.gameEngine = new GameEngine();
                 this.selectedCell = null;
                 this.isPlayerTurn = false;
+                this.gameStarted = false;
                 this.createBoard();
+                this.renderBoard(); // 重新显示卡牌背面
                 this.log('🔄 游戏已重启');
-                document.getElementById('game-status').textContent = '点击开始游戏';
+                document.getElementById('game-status').textContent = '游戏准备中';
                 document.getElementById('player-faction').textContent = '未确定';
                 document.getElementById('ai-faction').textContent = '未确定';
+                
+                // 显示开始游戏遮罩层
+                document.getElementById('start-game-overlay').style.display = 'flex';
             }
             
             log(message) {
