@@ -165,6 +165,19 @@ export class GameState {
     });
   }
 
+  /**
+   * 设置AI阵营
+   * @param {string} aiFaction - AI阵营
+   */
+  setAIFaction(aiFaction) {
+    this.aiFaction = aiFaction;
+    this.playerFaction = aiFaction === 'dragon' ? 'tiger' : 'dragon';
+    
+    this.addLogEntry('faction_assigned', 'system', '阵营分配', {
+      playerFaction: this.playerFaction,
+      aiFaction: this.aiFaction
+    });
+  }
 
 
   /**

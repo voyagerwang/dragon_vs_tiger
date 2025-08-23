@@ -184,7 +184,7 @@ export class GameEngine {
     }
 
     /**
-     * 翻牌操作
+     * 翻开卡牌
      * @param {number} row - 行索引
      * @param {number} col - 列索引
      * @param {string} player - 执行翻牌的玩家 ('player' 或 'ai')，可选，默认为当前玩家
@@ -220,18 +220,27 @@ export class GameEngine {
             // 翻开卡牌
             card.reveal();
             
-            // 如果是首次翻牌，确定阵营
+            // 如果是首次翻牌，根据先手玩家确定阵营
             let factionAssigned = false;
             if (!this.gameState.playerFaction) {
-                this.gameState.setPlayerFaction(card.faction);
+                // 根据先手玩家设置阵营
+                if (this.gameState.currentPlayer === 'player') {
+                    // 玩家先手，第一张卡牌是玩家阵营
+                    this.gameState.setPlayerFaction(card.faction);
+                    card.owner = 'player';
+                } else {
+                    // AI先手，第一张卡牌是AI阵营
+                    this.gameState.setAIFaction(card.faction);
+                    card.owner = 'ai';
+                }
                 factionAssigned = true;
-            }
-            
-            // 根据卡牌阵营设置归属，而不是根据翻开者
-            if (card.faction === this.gameState.playerFaction) {
-                card.owner = 'player';
             } else {
-                card.owner = 'ai';
+                // 阵营已确定，根据卡牌阵营设置归属
+                if (card.faction === this.gameState.playerFaction) {
+                    card.owner = 'player';
+                } else {
+                    card.owner = 'ai';
+                }
             }
 
             this.gameState.addLogEntry('flip', expectedPlayer, '翻开卡牌', {
