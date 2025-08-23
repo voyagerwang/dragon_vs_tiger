@@ -446,13 +446,15 @@
         import { GameEngine } from './scripts/core/GameEngine.js';
         
         class SimpleGame {
-            constructor() {
-                this.gameEngine = new GameEngine();
-                this.selectedCell = null;
-                this.isPlayerTurn = false;
-                this.gameStarted = false;
-                this.init();
-            }
+                    constructor() {
+            this.gameEngine = new GameEngine();
+            this.selectedCell = null;
+            this.isPlayerTurn = false;
+            this.gameStarted = false;
+            this.imageCache = new Map(); // 图片缓存
+            this.init();
+            this.preloadImages(); // 预加载图片
+        }
             
             init() {
                 this.createBoard();
@@ -553,6 +555,15 @@
                         const cell = this.getCell(row, col);
                         const card = gameState.getCardAt(row, col);
                         
+                        // 检查是否需要重新渲染
+                        const existingCard = cell.querySelector('.card');
+                        const needsRerender = this.needsRerender(cell, card);
+                        
+                        if (!needsRerender) {
+                            // 不需要重新渲染，跳过
+                            continue;
+                        }
+                        
                         cell.innerHTML = '';
                         
                         // 第三行(row=2)是战场区域，如果有卡牌则正常渲染
@@ -565,12 +576,13 @@
                             renderedCards++;
                             const cardElement = document.createElement('div');
                             cardElement.className = 'card';
+                            cardElement.dataset.cardId = card.id; // 添加卡牌ID标识
                             
                             if (card.isRevealed) {
                                 cardElement.classList.add('revealed', card.faction);
                                 
-                                // 设置正面图片 (添加时间戳防止缓存)
-                                const imagePath = `assets/cards/${card.faction}_${card.level}.png?t=${Date.now()}`;
+                                // 设置正面图片 (移除时间戳以启用缓存)
+                                const imagePath = `assets/cards/${card.faction}_${card.level}.png`;
                                 cardElement.style.backgroundImage = `url('${imagePath}')`;
                                 
                                 this.log(`🃏 渲染已翻开卡牌: ${card.name} at (${row}, ${col})`);
@@ -586,8 +598,8 @@
                                 }
                             } else {
                                 cardElement.classList.add('hidden');
-                                // 确保背面图片显示
-                                const backImagePath = `assets/cards/card_back.png?t=${Date.now()}`;
+                                // 确保背面图片显示 (移除时间戳以启用缓存)
+                                const backImagePath = `assets/cards/card_back.png`;
                                 cardElement.style.backgroundImage = `url('${backImagePath}')`;
                                 
                                 this.log(`🎴 渲染背面卡牌 at (${row}, ${col})`);
@@ -871,6 +883,52 @@
                 
                 document.getElementById('remaining-cards').textContent = 16 - revealedCount;
                 document.getElementById('turn-count').textContent = gameState.gameLog.length;
+            }
+
+            // 预加载所有卡牌图片
+            preloadImages() {
+                const factions = ['dragon', 'tiger'];
+                const levels = [1, 2, 3, 4, 5, 6, 7, 8];
+                
+                factions.forEach(faction => {
+                    levels.forEach(level => {
+                        const img = new Image();
+                        img.src = `assets/cards/${faction}_${level}.png`;
+                        this.imageCache.set(`${faction}_${level}`, img);
+                    });
+                });
+                
+                // 预加载背面图片
+                const backImg = new Image();
+                backImg.src = 'assets/cards/card_back.png';
+                this.imageCache.set('card_back', backImg);
+                
+                this.log('🖼️ 图片预加载完成');
+            }
+
+            // 检查是否需要重新渲染
+            needsRerender(cell, card) {
+                const existingCard = cell.querySelector('.card');
+                
+                // 如果没有现有卡牌，需要渲染
+                if (!existingCard && !card) return false;
+                if (!existingCard && card) return true;
+                if (existingCard && !card) return true;
+                
+                // 检查卡牌ID是否变化
+                const existingId = existingCard.dataset.cardId;
+                if (existingId !== card.id) return true;
+                
+                // 检查卡牌状态是否变化
+                const isRevealed = existingCard.classList.contains('revealed');
+                if (isRevealed !== card.isRevealed) return true;
+                
+                // 检查卡牌所有者是否变化
+                const isPlayerCard = existingCard.classList.contains('player');
+                const shouldBePlayerCard = card.owner === 'player';
+                if (isPlayerCard !== shouldBePlayerCard) return true;
+                
+                return false;
             }
             
             showHint() {
