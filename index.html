@@ -3,41 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>龙虎斗 - 简化版</title>
+    <title>龍虎鬥 - 简化版</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             min-height: 100vh;
         }
         
         .game-container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             text-align: center;
         }
         
+        .game-title {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+        
         .game-header {
             background: rgba(255,255,255,0.1);
-            padding: 15px;
+            padding: 12px 15px;
             border-radius: 10px;
             margin-bottom: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .header-item {
+            display: flex;
+            align-items: center;
             gap: 8px;
+            font-size: 14px;
+        }
+        
+        .header-item > div:first-child {
+            font-weight: bold;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .game-status {
+            font-size: 18px;
+            font-weight: bold;
+            color: #f39c12;
         }
         
         .game-board {
             display: grid;
             grid-template-rows: repeat(5, 1fr);
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            padding: 20px;
+            gap: 10px;
+            padding: 25px;
             background: rgba(0,0,0,0.3);
             border-radius: 15px;
             margin: 20px auto;
@@ -45,8 +73,8 @@
         }
         
         .board-cell {
-            width: 80px;
-            height: 112px;
+            width: 90px;
+            height: 126px;
             background: #ecf0f1;
             border: 2px solid #95a5a6;
             border-radius: 8px;
@@ -224,14 +252,6 @@
             transform: none;
         }
         
-        .button.surrender {
-            background: #e74c3c;
-        }
-        
-        .button.surrender:hover {
-            background: #c0392b;
-        }
-        
         .button.start-game {
             background: #27ae60;
             font-size: 18px;
@@ -253,7 +273,7 @@
             padding: 10px;
             border-radius: 5px;
             margin-top: 10px;
-            max-height: 150px;
+            max-height: 120px;
             overflow-y: auto;
             font-size: 12px;
             text-align: left;
@@ -269,15 +289,26 @@
                 max-width: 100%;
             }
             
+            .game-title {
+                padding: 12px;
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+            
             .game-header {
-                flex-direction: column;
+                flex-direction: row;
                 gap: 10px;
                 padding: 10px;
                 margin-bottom: 10px;
             }
             
-            .game-header > div {
-                font-size: 14px;
+            .header-item {
+                font-size: 12px;
+                gap: 5px;
+            }
+            
+            .game-status {
+                font-size: 16px;
             }
             
             .game-board {
@@ -286,8 +317,8 @@
             }
             
             .board-cell {
-                width: 70px;
-                height: 98px;
+                width: 75px;
+                height: 105px;
             }
             
             .button {
@@ -301,7 +332,7 @@
             }
             
             .log {
-                max-height: 100px;
+                max-height: 80px;
                 font-size: 11px;
             }
             
@@ -316,8 +347,8 @@
         
         @media (max-width: 480px) {
             .board-cell {
-                width: 65px;
-                height: 91px;
+                width: 70px;
+                height: 98px;
             }
             
             .button {
@@ -326,27 +357,32 @@
                 margin: 2px;
             }
             
-            h1 {
-                font-size: 24px;
+            .game-title {
+                font-size: 18px;
+                padding: 10px;
             }
             
-            .game-header > div {
-                font-size: 12px;
+            .header-item {
+                font-size: 11px;
+            }
+            
+            .game-status {
+                font-size: 14px;
             }
         }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <h1>🐉 龙虎斗 🐅</h1>
+        <div class="game-title">龍虎鬥</div>
         
         <div class="game-header">
-            <div>
+            <div class="header-item">
                 <div>👤 玩家</div>
                 <div id="player-faction">未确定</div>
             </div>
-            <div class="status" id="game-status">游戏准备中</div>
-            <div>
+            <div class="game-status" id="game-status">游戏准备中</div>
+            <div class="header-item">
                 <div>🤖 AI对手</div>
                 <div id="ai-faction">未确定</div>
             </div>
@@ -359,7 +395,7 @@
         <div class="controls">
             <button id="restart-btn" class="button">重新开始</button>
             <button id="hint-btn" class="button">提示</button>
-            <button id="surrender-btn" class="button surrender">认输</button>
+            <button id="surrender-btn" class="button">认输</button>
             <div class="status">回合数: <span id="turn-count">0</span> | 剩余牌数: <span id="remaining-cards">16</span></div>
         </div>
         
@@ -371,8 +407,8 @@
     <!-- 开始游戏遮罩层 -->
     <div id="start-game-overlay" class="start-game-overlay">
         <div class="start-game-modal">
-            <h2>🐉 龙虎斗 🐅</h2>
-            <p>欢迎来到龙虎斗游戏！<br>点击开始按钮开始游戏</p>
+            <h2>🐉 龍虎鬥 🐅</h2>
+            <p>欢迎来到龍虎鬥游戏！<br>点击开始按钮开始游戏</p>
             <button id="start-btn" class="button start-game">开始游戏</button>
         </div>
     </div>
@@ -393,7 +429,7 @@
                 this.createBoard();
                 this.bindEvents();
                 this.renderBoard(); // 默认显示卡牌背面
-                this.log('简化版龙虎斗游戏已初始化');
+                this.log('简化版龍虎鬥游戏已初始化');
             }
             
             createBoard() {
