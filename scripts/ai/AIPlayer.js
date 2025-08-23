@@ -333,27 +333,42 @@ export class AIPlayer {
      * @returns {string} 策略类型
      */
     selectStrategy(analysis) {
-        const { revealedCards, aiCards, playerCards, materialAdvantage, positionAdvantage } = analysis;
+        const { revealedCards, aiCards, playerCards, materialAdvantage, positionAdvantage, controlAnalysis } = analysis;
         
         // 如果AI阵营未确定，优先翻牌
         if (!this.gameEngine.gameState.aiFaction) {
             return 'flip';
         }
         
+        // 分析第三行控制情况
+        const row2Advantage = controlAnalysis.row2Control.advantage;
+        
         // 如果AI卡牌数量明显少于玩家，优先翻牌
-        if (aiCards.length < playerCards.length - 2) {
+        if (aiCards.length < playerCards.length - 1) {
             this.logThinking('AI卡牌数量不足，优先翻牌', 'strategy_flip_shortage');
             return 'flip';
         }
         
-        // 如果AI有优势，优先攻击
-        if (materialAdvantage > 0.3 && aiCards.length >= 3) {
+        // 如果AI有必胜攻击机会，优先攻击
+        if (this.hasWinningAttack()) {
+            this.logThinking('发现必胜攻击机会，优先攻击', 'strategy_attack_winning');
+            return 'attack';
+        }
+        
+        // 如果AI有材料优势且数量充足，优先攻击
+        if (materialAdvantage > 0.2 && aiCards.length >= 3) {
             this.logThinking('AI有材料优势，优先攻击', 'strategy_attack_advantage');
             return 'attack';
         }
         
-        // 如果AI处于劣势，优先翻牌或防守
-        if (materialAdvantage < -0.2) {
+        // 如果第三行控制权重要，优先移动占领
+        if (Math.abs(row2Advantage) <= 1 && aiCards.length >= 2) {
+            this.logThinking('第三行控制权重要，优先移动占领', 'strategy_move_control');
+            return 'move';
+        }
+        
+        // 如果AI处于劣势，优先翻牌寻找机会
+        if (materialAdvantage < -0.1) {
             if (revealedCards.filter(card => !card.owner).length > 0) {
                 this.logThinking('AI处于劣势，优先翻牌寻找机会', 'strategy_flip_disadvantage');
                 return 'flip';
@@ -364,20 +379,46 @@ export class AIPlayer {
         }
         
         // 如果AI有好的移动机会，优先移动
-        if (positionAdvantage > 0.2 && aiCards.length >= 2) {
+        if (positionAdvantage > 0.1 && aiCards.length >= 2) {
             this.logThinking('AI有位置优势，优先移动', 'strategy_move_position');
             return 'move';
         }
         
-        // 默认策略：优先翻牌，然后攻击，最后移动
+        // 默认策略：根据局面动态调整
         const random = Math.random();
-        if (random < 0.4) {
+        if (random < 0.5) {
             return 'flip';
-        } else if (random < 0.7) {
+        } else if (random < 0.8) {
             return 'attack';
         } else {
             return 'move';
         }
+    }
+    
+    /**
+     * 检查是否有必胜攻击机会
+     * @returns {boolean} 是否有必胜攻击
+     */
+    hasWinningAttack() {
+        const gameState = this.gameEngine.gameState;
+        const aiCards = gameState.cardsData.filter(card => 
+            card.isRevealed && card.owner === 'ai'
+        );
+        const playerCards = gameState.cardsData.filter(card => 
+            card.isRevealed && card.owner === 'player'
+        );
+        
+        for (const aiCard of aiCards) {
+            for (const playerCard of playerCards) {
+                if (this.isAdjacent(aiCard.position, playerCard.position)) {
+                    const battleResult = this.gameEngine.battleResolver.resolveBattle(aiCard, playerCard);
+                    if (battleResult === 'win') {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
     
     /**
@@ -393,26 +434,66 @@ export class AIPlayer {
             return this.makeMoveDecision();
         }
         
-        // 优先选择边缘位置的卡牌
-        const edgeCards = unrevealedCards.filter(card => 
-            card.position.row === 0 || card.position.row === 4 || 
-            card.position.col === 0 || card.position.col === 3
-        );
+        // 智能选择翻牌位置
+        let bestCard = null;
+        let bestScore = -Infinity;
         
-        const targetCards = edgeCards.length > 0 ? edgeCards : unrevealedCards;
-        const selectedCard = this.strategy.randomSelect(targetCards);
+        for (const card of unrevealedCards) {
+            const score = this.evaluateFlipPosition(card);
+            if (score > bestScore) {
+                bestScore = score;
+                bestCard = card;
+            }
+        }
         
         this.logThinking('选择翻牌位置', 'flip_selection', {
-            position: selectedCard.position,
+            position: bestCard.position,
+            score: bestScore,
             totalUnrevealed: unrevealedCards.length
         });
         
         return {
             action: 'flip',
-            position: selectedCard.position,
-            confidence: 0.8,
-            reasoning: '优先翻开边缘位置的卡牌'
+            position: bestCard.position,
+            confidence: Math.min(0.9, 0.6 + bestScore * 0.1),
+            reasoning: `选择最佳翻牌位置，评分: ${bestScore.toFixed(2)}`
         };
+    }
+    
+    /**
+     * 评估翻牌位置的价值
+     * @param {Object} card - 未翻开的卡牌
+     * @returns {number} 位置价值
+     */
+    evaluateFlipPosition(card) {
+        let score = 0;
+        const { row, col } = card.position;
+        
+        // 边缘位置优先（便于防守和逃跑）
+        if (row === 0 || row === 4 || col === 0 || col === 3) {
+            score += 3;
+        }
+        
+        // 第三行附近优先（便于快速进入战场）
+        if (row === 1 || row === 3) {
+            score += 2;
+        }
+        
+        // 角落位置略有优势
+        if ((row === 0 || row === 4) && (col === 0 || col === 3)) {
+            score += 1;
+        }
+        
+        // 考虑周围已翻开卡牌的信息价值
+        const adjacentCards = this.getAdjacentCards(row, col);
+        const revealedAdjacent = adjacentCards.filter(card => card && card.isRevealed);
+        score += revealedAdjacent.length * 0.5;
+        
+        // 考虑安全性（避免被包围）
+        const enemyThreats = this.countEnemyThreatsAt(row, col);
+        score -= enemyThreats * 0.8;
+        
+        return score;
     }
     
     /**
@@ -462,8 +543,8 @@ export class AIPlayer {
             }
         }
         
-        if (bestAttack && bestAttack.score > 0) {
-            this.logThinking('找到有利攻击机会', 'attack_found', bestAttack);
+        if (bestAttack && bestAttack.score > -2) { // 降低攻击门槛，允许一些风险攻击
+            this.logThinking('找到攻击机会', 'attack_found', bestAttack);
             return {
                 action: 'move',
                 from: bestAttack.from,
@@ -473,7 +554,7 @@ export class AIPlayer {
             };
         }
         
-        this.logThinking('没有有利攻击机会，尝试移动', 'attack_no_good_opportunity');
+        this.logThinking('没有好的攻击机会，尝试移动', 'attack_no_good_opportunity');
         return this.makeMoveDecision();
     }
     
@@ -512,8 +593,8 @@ export class AIPlayer {
             }
         }
         
-        if (bestMove && bestMove.score > 0) {
-            this.logThinking('找到有利移动机会', 'move_found', bestMove);
+        if (bestMove && bestMove.score > -1) { // 降低移动门槛，允许一些风险移动
+            this.logThinking('找到移动机会', 'move_found', bestMove);
             return {
                 action: 'move',
                 from: bestMove.from,
@@ -523,7 +604,7 @@ export class AIPlayer {
             };
         }
         
-        this.logThinking('没有有利移动机会，尝试翻牌', 'move_no_good_opportunity');
+        this.logThinking('没有好的移动机会，尝试翻牌', 'move_no_good_opportunity');
         return this.makeFlipDecision();
     }
     
@@ -541,19 +622,35 @@ export class AIPlayer {
             return this.makeFlipDecision();
         }
         
-        // 寻找安全的移动位置
+        // 寻找最安全的移动位置
+        let bestDefenseMove = null;
+        let bestSafetyScore = -Infinity;
+        
         for (const aiCard of aiCards) {
             const safeMoves = this.getSafeMoves(aiCard);
-            if (safeMoves.length > 0) {
-                const selectedMove = this.strategy.randomSelect(safeMoves);
-                return {
-                    action: 'move',
-                    from: aiCard.position,
-                    to: selectedMove,
-                    confidence: 0.6,
-                    reasoning: '移动到安全位置进行防守'
-                };
+            for (const move of safeMoves) {
+                const safetyScore = this.evaluateDefenseMove(aiCard, move);
+                if (safetyScore > bestSafetyScore) {
+                    bestSafetyScore = safetyScore;
+                    bestDefenseMove = {
+                        from: aiCard.position,
+                        to: move,
+                        score: safetyScore,
+                        card: aiCard
+                    };
+                }
             }
+        }
+        
+        if (bestDefenseMove) {
+            this.logThinking('找到防守移动', 'defense_found', bestDefenseMove);
+            return {
+                action: 'move',
+                from: bestDefenseMove.from,
+                to: bestDefenseMove.to,
+                confidence: 0.7,
+                reasoning: `移动到安全位置进行防守，安全评分: ${bestDefenseMove.score.toFixed(2)}`
+            };
         }
         
         return this.makeFlipDecision();
@@ -668,24 +765,33 @@ export class AIPlayer {
         let baseScore = 0;
         switch (battleResult) {
             case 'win':
-                baseScore = 10;
+                baseScore = 15; // 提高获胜奖励
                 break;
             case 'lose':
-                baseScore = -5;
+                baseScore = -8; // 降低失败惩罚
                 break;
             case 'draw':
-                baseScore = 0;
+                baseScore = 2; // 提高平局奖励
                 break;
         }
         
-        // 考虑卡牌等级差异
+        // 考虑卡牌等级差异（等级越低越强）
         const levelDiff = playerCard.level - aiCard.level;
-        const levelBonus = levelDiff * 0.5;
+        const levelBonus = levelDiff * 0.8;
         
         // 考虑位置价值
         const positionValue = this.evaluatePositionValue(playerCard.position);
         
-        return baseScore + levelBonus + positionValue;
+        // 考虑特殊规则（8级可以击败1级）
+        let specialRuleBonus = 0;
+        if (aiCard.level === 8 && playerCard.level === 1) {
+            specialRuleBonus = 5;
+        }
+        
+        // 考虑战略价值（击败高价值卡牌）
+        const strategicValue = (9 - playerCard.level) * 0.5;
+        
+        return baseScore + levelBonus + positionValue + specialRuleBonus + strategicValue;
     }
     
     /**
@@ -804,6 +910,368 @@ export class AIPlayer {
         ];
     }
     
+    /**
+     * 选择最佳移动
+     * @param {Array} moveOptions - 移动选项
+     * @returns {Object} 最佳移动
+     */
+    selectBestMove(moveOptions) {
+        if (moveOptions.length === 0) {
+            throw new Error('没有可用的移动选项');
+        }
+        
+        // 优先选择能获胜的攻击
+        const winningAttacks = moveOptions.filter(move => move.canWin);
+        if (winningAttacks.length > 0) {
+            // 修复：在获胜攻击中，优先选择击败高等级卡牌（低数字）的攻击
+            const bestAttack = winningAttacks.reduce((best, current) => {
+                const targetCard = this.gameEngine.gameState.getCardAt(current.to.row, current.to.col);
+                if (targetCard && targetCard.level < best.targetLevel) { // 等级越低越强
+                    return { ...current, targetLevel: targetCard.level };
+                }
+                return best;
+            }, { targetLevel: 9 }); // 初始化为最高等级
+            
+            return bestAttack;
+        }
+        
+        // 其次选择高分移动
+        const topMoves = moveOptions.slice(0, 3); // 前3个最高分
+        return this.strategy.selectFromTopMoves(topMoves);
+    }
+
+    /**
+     * 查找必胜攻击
+     * @returns {Array} 必胜攻击列表
+     */
+    findWinningAttacks() {
+        const moveOptions = this.evaluateMoveOptions();
+        return moveOptions.filter(move => 
+            move.type === 'battle' && move.canWin
+        );
+    }
+
+    /**
+     * 查找安全移动
+     * @returns {Array} 安全移动列表
+     */
+    findSafeMoves() {
+        const moveOptions = this.evaluateMoveOptions();
+        return moveOptions.filter(move => 
+            move.type === 'move' || (move.type === 'battle' && move.canWin)
+        );
+    }
+
+    /**
+     * 查找特殊规则机会
+     * @returns {Array} 特殊规则机会列表
+     */
+    findSpecialRuleOpportunities() {
+        const moveOptions = this.evaluateMoveOptions();
+        return moveOptions.filter(move => move.isSpecialRule);
+    }
+
+    /**
+     * 模拟移动结果
+     * @param {Object} from - 起始位置
+     * @param {Object} to - 目标位置
+     * @returns {Object} 模拟结果
+     */
+    simulateMove(from, to) {
+        const gameState = this.gameEngine.gameState;
+        const movingCard = gameState.getCardAt(from.row, from.col);
+        const targetCard = gameState.getCardAt(to.row, to.col);
+        
+        if (!movingCard) {
+            return {
+                isValid: false,
+                reason: '起始位置没有卡牌'
+            };
+        }
+        
+        // 检查移动有效性
+        const isValid = this.gameEngine.isValidMove(
+            from.row, from.col, to.row, to.col
+        );
+        
+        if (!isValid) {
+            return {
+                isValid: false,
+                reason: '无效移动'
+            };
+        }
+        
+        let outcome = 'move';
+        let score = 0;
+        
+        if (targetCard && targetCard.isRevealed) {
+            // 战斗模拟
+            const battleResult = movingCard.battleWith(targetCard);
+            
+            if (battleResult === 'win') {
+                outcome = 'win';
+                score = 10 + targetCard.level;
+            } else if (battleResult === 'lose') {
+                outcome = 'lose';
+                score = -(10 + movingCard.level);
+            } else {
+                outcome = 'draw';
+                score = targetCard.level - movingCard.level;
+            }
+        } else {
+            // 普通移动
+            score = this.evaluatePositionValue(to);
+        }
+        
+        return {
+            isValid: true,
+            moveType: targetCard ? 'battle' : 'move',
+            outcome,
+            score,
+            battleResult: targetCard ? {
+                attacker: movingCard.toJSON(),
+                defender: targetCard.toJSON(),
+                winner: outcome
+            } : null
+        };
+    }
+
+    /**
+     * 执行决策
+     * @param {Object} decision - 决策对象
+     * @returns {Promise<Object>} 执行结果
+     */
+    async executeDecision(decision) {
+        switch (decision.action) {
+            case 'flip':
+                return this.gameEngine.flipCard(
+                    decision.position.row, 
+                    decision.position.col,
+                    'ai'  // 明确指定是AI在翻牌
+                );
+                
+            case 'move':
+                return this.gameEngine.moveCard(
+                    decision.from.row, 
+                    decision.from.col,
+                    decision.to.row, 
+                    decision.to.col,
+                    'ai'  // 明确指定是AI在移动卡牌
+                );
+                
+            case 'wait':
+                return {
+                    success: true,
+                    message: 'AI选择等待',
+                    action: 'wait'
+                };
+                
+            default:
+                throw new Error(`未知的AI动作: ${decision.action}`);
+        }
+    }
+
+    /**
+     * 获取AI的已翻开卡牌
+     * @returns {Array} AI卡牌数组
+     */
+    getAIRevealedCards() {
+        const gameState = this.gameEngine.gameState;
+        const aiFaction = gameState.aiFaction;
+        
+        if (!aiFaction) return [];
+        
+        return gameState.cardsData.filter(card => 
+            card.isRevealed && 
+            card.faction === aiFaction &&
+            card.position.row >= 0 && 
+            card.position.col >= 0
+        );
+    }
+
+    /**
+     * 计算未翻开卡牌数量
+     * @returns {number} 未翻开卡牌数量
+     */
+    countUnrevealedCards() {
+        return this.gameEngine.gameState.cardsData.filter(card => !card.isRevealed).length;
+    }
+
+    /**
+     * 计算指定玩家的卡牌数量
+     * @param {string} player - 玩家类型
+     * @returns {number} 卡牌数量
+     */
+    countPlayerCards(player) {
+        const gameState = this.gameEngine.gameState;
+        const faction = player === 'player' ? gameState.playerFaction : gameState.aiFaction;
+        
+        if (!faction) return 0;
+        
+        return gameState.cardsData.filter(card => 
+            card.isRevealed && card.faction === faction
+        ).length;
+    }
+
+    /**
+     * 检查是否可以翻牌
+     * @returns {boolean} 是否可以翻牌
+     */
+    canFlipCards() {
+        const gameState = this.gameEngine.gameState;
+        
+        for (let row = 0; row < 5; row++) {
+            if (row === 2) continue;
+            
+            for (let col = 0; col < 4; col++) {
+                const card = gameState.getCardAt(row, col);
+                if (card && !card.isRevealed) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * 检查是否可以移动卡牌
+     * @returns {boolean} 是否可以移动
+     */
+    canMoveCards() {
+        const aiCards = this.getAIRevealedCards();
+        
+        return aiCards.some(card => {
+            const validMoves = this.gameEngine.getValidMoves(
+                card.position.row, 
+                card.position.col
+            );
+            return validMoves.length > 0;
+        });
+    }
+
+    /**
+     * 分析威胁
+     * @returns {Array} 威胁列表
+     */
+    analyzeThreats() {
+        const threats = [];
+        const gameState = this.gameEngine.gameState;
+        const playerFaction = gameState.playerFaction;
+        
+        if (!playerFaction) return threats;
+        
+        // 查找玩家可以攻击的AI卡牌
+        gameState.cardsData.forEach(playerCard => {
+            if (playerCard.isRevealed && playerCard.faction === playerFaction) {
+                const validMoves = this.gameEngine.getValidMoves(
+                    playerCard.position.row,
+                    playerCard.position.col
+                );
+                
+                validMoves.forEach(move => {
+                    if (move.type === 'battle') {
+                        const targetCard = gameState.getCardAt(move.row, move.col);
+                        if (targetCard && targetCard.faction === gameState.aiFaction) {
+                            const battleResult = playerCard.battleWith(targetCard);
+                            if (battleResult === 'win') {
+                                threats.push({
+                                    type: 'attack_threat',
+                                    attacker: playerCard,
+                                    target: targetCard,
+                                    severity: targetCard.level
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        
+        return threats;
+    }
+
+    /**
+     * 分析机会
+     * @returns {Array} 机会列表
+     */
+    analyzeOpportunities() {
+        const opportunities = [];
+        const aiCards = this.getAIRevealedCards();
+        
+        aiCards.forEach(aiCard => {
+            const validMoves = this.gameEngine.getValidMoves(
+                aiCard.position.row,
+                aiCard.position.col
+            );
+            
+            validMoves.forEach(move => {
+                if (move.type === 'battle') {
+                    const targetCard = this.gameEngine.gameState.getCardAt(move.row, move.col);
+                    if (targetCard && targetCard.isRevealed) {
+                        const battleResult = aiCard.battleWith(targetCard);
+                        if (battleResult === 'win') {
+                            opportunities.push({
+                                type: 'attack_opportunity',
+                                attacker: aiCard,
+                                target: targetCard,
+                                value: targetCard.level,
+                                isSpecialRule: this.isSpecialRule(aiCard, targetCard)
+                            });
+                        }
+                    }
+                }
+            });
+        });
+        
+        return opportunities;
+    }
+
+    /**
+     * 检查是否为特殊规则
+     * @param {Card} attacker - 攻击方
+     * @param {Card} defender - 防守方
+     * @returns {boolean} 是否为特殊规则
+     */
+    isSpecialRule(attacker, defender) {
+        return (attacker.id === 'tiger_8' && defender.id === 'dragon_1') ||
+               (attacker.id === 'dragon_8' && defender.id === 'tiger_1');
+    }
+
+    /**
+     * 评估移动选项
+     * @returns {Array} 移动选项数组
+     */
+    evaluateMoveOptions() {
+        const aiCards = this.getAIRevealedCards();
+        const allMoves = [];
+        
+        aiCards.forEach(card => {
+            const validMoves = this.gameEngine.getValidMoves(
+                card.position.row, 
+                card.position.col
+            );
+            
+            validMoves.forEach(move => {
+                const evaluation = this.evaluateMove(card, move);
+                allMoves.push({
+                    from: card.position,
+                    to: { row: move.row, col: move.col },
+                    card: card,
+                    type: move.type,
+                    score: evaluation.score,
+                    confidence: evaluation.confidence,
+                    reasoning: evaluation.reasoning,
+                    canWin: evaluation.canWin,
+                    isSpecialRule: evaluation.isSpecialRule
+                });
+            });
+        });
+        
+        // 按评分排序
+        return allMoves.sort((a, b) => b.score - a.score);
+    }
+
     /**
      * 选择最佳移动
      * @param {Array} moveOptions - 移动选项
