@@ -543,7 +543,7 @@ export class AIPlayer {
             }
         }
         
-        if (bestAttack && bestAttack.score > -2) { // 降低攻击门槛，允许一些风险攻击
+        if (bestAttack && bestAttack.score > 10) { // 只选择正收益攻击，确保己方力量最大化
             this.logThinking('找到攻击机会', 'attack_found', bestAttack);
             return {
                 action: 'move',
@@ -762,36 +762,43 @@ export class AIPlayer {
     evaluateAttack(aiCard, playerCard) {
         const battleResult = this.gameEngine.battleResolver.resolveBattle(aiCard, playerCard);
         
+        // 基于战斗结果的基础评分
         let baseScore = 0;
         switch (battleResult) {
             case 'win':
-                baseScore = 15; // 提高获胜奖励
+                // 胜利：己方保留 + 敌方损失
+                const aiCardValue = (9 - aiCard.level) * 2; // AI卡牌保留价值
+                const playerCardValue = (9 - playerCard.level) * 3; // 敌方卡牌损失价值
+                baseScore = aiCardValue + playerCardValue + 20; // 胜利基础奖励
                 break;
             case 'lose':
-                baseScore = -8; // 降低失败惩罚
+                // 失败：己方损失巨大，绝对不能接受
+                const aiLossValue = (9 - aiCard.level) * -5; // AI卡牌损失惩罚
+                baseScore = aiLossValue - 50; // 失败基础惩罚
                 break;
             case 'draw':
-                baseScore = 2; // 提高平局奖励
+                // 平局：双方都损失，需要考虑价值交换
+                const aiValue = (9 - aiCard.level) * -2;
+                const playerValue = (9 - playerCard.level) * 2;
+                baseScore = playerValue + aiValue; // 如果敌方卡牌更有价值则有利
                 break;
         }
         
-        // 考虑卡牌等级差异（等级越低越强）
-        const levelDiff = playerCard.level - aiCard.level;
-        const levelBonus = levelDiff * 0.8;
-        
-        // 考虑位置价值
-        const positionValue = this.evaluatePositionValue(playerCard.position);
-        
-        // 考虑特殊规则（8级可以击败1级）
-        let specialRuleBonus = 0;
-        if (aiCard.level === 8 && playerCard.level === 1) {
-            specialRuleBonus = 5;
+        // 只有在胜利时才考虑额外奖励
+        if (battleResult === 'win') {
+            // 位置价值奖励
+            const positionValue = this.evaluatePositionValue(playerCard.position);
+            
+            // 特殊规则奖励（8级击败1级）
+            let specialRuleBonus = 0;
+            if (aiCard.level === 8 && playerCard.level === 1) {
+                specialRuleBonus = 10;
+            }
+            
+            baseScore += positionValue + specialRuleBonus;
         }
         
-        // 考虑战略价值（击败高价值卡牌）
-        const strategicValue = (9 - playerCard.level) * 0.5;
-        
-        return baseScore + levelBonus + positionValue + specialRuleBonus + strategicValue;
+        return baseScore;
     }
     
     /**

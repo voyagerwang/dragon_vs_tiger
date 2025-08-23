@@ -80,11 +80,41 @@
             transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
         }
+
+        /* 高亮选中的卡牌 */
+        .board-cell.selected {
+            border-color: #f39c12;
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.6);
+            transform: scale(1.05);
+        }
+
+        /* 高亮可移动位置 */
+        .board-cell.movable {
+            border-color: #27ae60;
+            background: #d5f4e6;
+            box-shadow: 0 0 15px rgba(39, 174, 96, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 高亮可攻击位置 */
+        .board-cell.attackable {
+            border-color: #e74c3c;
+            background: #fadbd8;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
         
         .board-cell.empty-row {
-            background: linear-gradient(145deg, #34495e, #2c3e50);
-            border-color: #34495e;
-            cursor: pointer;
+            background: #ecf0f1;
+            border: 2px solid #95a5a6;
+            cursor: default;
             opacity: 0.7;
             transition: all 0.3s ease;
         }
@@ -92,7 +122,7 @@
         .board-cell.empty-row:hover {
             opacity: 0.9;
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(52, 73, 94, 0.4);
+            box-shadow: 0 6px 15px rgba(149, 165, 166, 0.4);
         }
         
         .board-cell.empty-row.valid-move {
@@ -585,6 +615,7 @@
                     // 如果有选中的卡牌，取消选择
                     if (this.selectedCell) {
                         this.selectedCell.classList.remove('selected');
+                        this.clearHighlights(); // 清除高亮
                         this.selectedCell = null;
                     }
                     
@@ -619,9 +650,10 @@
             }
             
             selectCard(row, col) {
-                // 清除之前的选择
+                // 清除之前的选择和高亮
                 if (this.selectedCell) {
                     this.selectedCell.classList.remove('selected');
+                    this.clearHighlights();
                 }
                 
                 const cell = this.getCell(row, col);
@@ -629,6 +661,63 @@
                 this.selectedCell = cell;
                 
                 this.log(`🎯 选择了位置 (${row}, ${col}) 的卡牌`);
+                
+                // 高亮可移动位置
+                this.highlightMovablePositions(row, col);
+            }
+
+            // 高亮可移动位置
+            highlightMovablePositions(fromRow, fromCol) {
+                const card = this.gameEngine.gameState.getCardAt(fromRow, fromCol);
+                if (!card || card.owner !== 'player') return;
+
+                // 获取相邻位置
+                const adjacentPositions = this.getAdjacentPositions(fromRow, fromCol);
+                
+                adjacentPositions.forEach(pos => {
+                    const targetCard = this.gameEngine.gameState.getCardAt(pos.row, pos.col);
+                    const cell = this.getCell(pos.row, pos.col);
+                    
+                    if (!cell) return;
+                    
+                    if (!targetCard) {
+                        // 空位置，可以移动
+                        cell.classList.add('movable');
+                    } else if (targetCard.owner === 'ai') {
+                        // 敌方卡牌，可以攻击
+                        cell.classList.add('attackable');
+                    }
+                });
+            }
+
+            // 获取相邻位置
+            getAdjacentPositions(row, col) {
+                const positions = [];
+                const directions = [
+                    { row: -1, col: 0 }, // 上
+                    { row: 1, col: 0 },  // 下
+                    { row: 0, col: -1 }, // 左
+                    { row: 0, col: 1 }   // 右
+                ];
+
+                directions.forEach(dir => {
+                    const newRow = row + dir.row;
+                    const newCol = col + dir.col;
+                    
+                    // 允许移动到第三行，但跳过超出边界的位置
+                    if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 4) {
+                        positions.push({ row: newRow, col: newCol });
+                    }
+                });
+
+                return positions;
+            }
+
+            // 清除所有高亮
+            clearHighlights() {
+                document.querySelectorAll('.board-cell.movable, .board-cell.attackable').forEach(cell => {
+                    cell.classList.remove('movable', 'attackable');
+                });
             }
             
             attemptMove(toRow, toCol) {
@@ -643,6 +732,7 @@
                     this.log(`🚀 移动成功: ${result.data.moveType}`);
                     this.selectedCell.classList.remove('selected');
                     this.selectedCell = null;
+                    this.clearHighlights(); // 清除高亮
                     this.renderBoard();
                     this.updateStatus();
                     
