@@ -571,6 +571,109 @@ export class AIPlayer {
     getDistance(pos1, pos2) {
         return Math.abs(pos1.row - pos2.row) + Math.abs(pos1.col - pos2.col);
     }
+
+    /**
+     * 智能卡牌价值评估系统
+     */
+    calculateSmartCardValue(card, gameContext) {
+        if (!card) return 0;
+        
+        const baseValue = 9 - card.level; // 基础价值：1级=8分，8级=1分
+        
+        // 获取游戏上下文
+        const gameState = this.gameEngine.gameState;
+        const allCards = gameState.cardsData.filter(c => c.isRevealed);
+        const enemyCards = allCards.filter(c => c.owner && c.owner !== card.owner);
+        const allyCards = allCards.filter(c => c.owner === card.owner);
+        
+        // 计算动态价值修正
+        let valueMultiplier = 1.0;
+        
+        // 1. 无敌牌检测：如果所有能克制它的牌都消失了，价值大幅提升
+        if (this.isInvincibleCard(card, enemyCards)) {
+            valueMultiplier *= 3.0; // 无敌牌价值翻3倍
+            this.logThinking('发现无敌牌', 'invincible_card', {
+                card: card.name,
+                level: card.level,
+                reason: '所有克制牌已消失'
+            });
+        }
+        
+        // 2. 威胁检测：如果敌方有能克制它的牌，价值降低
+        const threats = this.getThreatsToCard(card, card.owner);
+        const threatCount = threats.length;
+        if (threatCount > 0) {
+            valueMultiplier *= Math.max(0.3, 1.0 - threatCount * 0.2);
+        }
+        
+        // 3. 消灭能力检测：能消灭多少敌方牌
+        const canEliminate = this.getEliminatableEnemies(card, enemyCards);
+        valueMultiplier += canEliminate.length * 0.3;
+        
+        // 4. 位置安全性评估
+        const safetyBonus = this.assessCardSafety(card);
+        valueMultiplier += safetyBonus;
+        
+        return baseValue * valueMultiplier;
+    }
+
+    /**
+     * 检测是否为无敌牌
+     */
+    isInvincibleCard(card, enemyCards) {
+        // 对于1级牌：检查敌方是否还有8级牌
+        if (card.level === 1) {
+            return !enemyCards.some(enemy => enemy.level === 8);
+        }
+        
+        // 对于其他牌：检查是否有比它小的敌方牌
+        const smallerEnemies = enemyCards.filter(enemy => enemy.level < card.level);
+        if (smallerEnemies.length === 0) {
+            // 没有更小的敌方牌，且自己不是8级
+            return card.level !== 8;
+        }
+        
+        return false;
+    }
+
+    /**
+     * 获取能被此牌消灭的敌方牌
+     */
+    getEliminatableEnemies(card, enemyCards) {
+        return enemyCards.filter(enemy => {
+            const battleResult = this.gameEngine.battleResolver.resolveBattle(card, enemy);
+            return battleResult === 'win';
+        });
+    }
+
+    /**
+     * 评估卡牌安全性
+     */
+    assessCardSafety(card) {
+        const gameState = this.gameEngine.gameState;
+        const threats = this.getThreatsToCard(card, card.owner);
+        
+        // 威胁距离评估
+        let safetyScore = 0;
+        threats.forEach(threat => {
+            const distance = this.getDistance(card.position, threat.position);
+            if (distance === 1) {
+                safetyScore -= 0.3; // 相邻威胁
+            } else if (distance === 2) {
+                safetyScore -= 0.1; // 距离2的威胁
+            }
+        });
+        
+        // 位置防御性评估
+        const { row, col } = card.position;
+        const isEdge = row === 0 || row === 4 || col === 0 || col === 3;
+        const isCorner = (row === 0 || row === 4) && (col === 0 || col === 3);
+        
+        if (isCorner) safetyScore += 0.2; // 角落相对安全
+        else if (isEdge) safetyScore += 0.1; // 边缘相对安全
+        
+        return safetyScore;
+    }
     
     /**
      * 检查是否有必胜攻击机会
@@ -711,7 +814,7 @@ export class AIPlayer {
     }
 
     /**
-     * 高级翻牌位置评估 - 基于期望价值算法
+     * 高级翻牌位置评估 - 基于智能消灭策略
      */
     evaluateFlipPositionAdvanced(card) {
         const gameState = this.gameEngine.gameState;
@@ -729,6 +832,48 @@ export class AIPlayer {
             return positionValue * 5;
         }
         
+        // 智能翻牌策略：基于消灭敌方牌的需求
+        let strategicBonus = 0;
+        
+        // 1. 检测附近是否有高威胁敌方牌，优先翻牌围攻
+        const enemyCards = this.getEnemyCards();
+        const highThreatEnemies = enemyCards.filter(enemy => this.isHighThreatCard(enemy));
+        
+        highThreatEnemies.forEach(enemy => {
+            const distance = this.getDistance({row, col}, enemy.position);
+            if (distance <= 2) {
+                strategicBonus += (3 - distance) * 10; // 距离越近奖励越高
+                this.logThinking('翻牌围攻高威胁敌方牌', 'flip_to_surround_threat', {
+                    targetCard: enemy.name,
+                    targetLevel: enemy.level,
+                    distance,
+                    flipPosition: {row, col}
+                });
+            }
+        });
+        
+        // 2. 如果有无敌牌，优先翻出更多己方牌来配合
+        const allyCards = this.getAllyCards();
+        const invincibleCards = allyCards.filter(ally => this.isInvincibleCard(ally, enemyCards));
+        
+        if (invincibleCards.length > 0) {
+            invincibleCards.forEach(invincible => {
+                const distance = this.getDistance({row, col}, invincible.position);
+                if (distance <= 2) {
+                    strategicBonus += (3 - distance) * 8; // 支援无敌牌
+                    this.logThinking('翻牌支援无敌牌', 'flip_to_support_invincible', {
+                        invincibleCard: invincible.name,
+                        distance,
+                        flipPosition: {row, col}
+                    });
+                }
+            });
+        }
+        
+        // 3. 检测是否可能翻出克制敌方威胁牌的己方牌
+        const counterBonus = this.calculateCounterPotential({row, col}, highThreatEnemies);
+        strategicBonus += counterBonus;
+        
         // 计算未知牌中己方和敌方的比例
         const unknownCards = gameState.cardsData.filter(card => !card.isRevealed);
         const unknownAICards = unknownCards.filter(card => card.faction === aiFaction);
@@ -738,12 +883,13 @@ export class AIPlayer {
         const playerCardRatio = unknownPlayerCards.length / unknownCards.length;
         
         // 计算期望价值
-        const aiCardExpectedValue = this.calculateExpectedCardValue(unknownAICards, positionValue);
-        const playerCardExpectedValue = this.calculateExpectedCardValue(unknownPlayerCards, positionValue);
+        const aiCardExpectedValue = this.calculateSmartExpectedValue(unknownAICards, positionValue);
+        const playerCardExpectedValue = this.calculateSmartExpectedValue(unknownPlayerCards, positionValue);
         
-        // 翻牌期望价值 = 己方牌期望收益 - 敌方牌期望损失 + 信息价值
+        // 翻牌期望价值 = 己方牌期望收益 - 敌方牌期望损失 + 战略奖励
         const expectedValue = aiCardRatio * aiCardExpectedValue - 
                             playerCardRatio * playerCardExpectedValue * 0.8 + 
+                            strategicBonus + 
                             this.calculateInformationValue() * 3;
         
         // 根据当前策略调整权重
@@ -751,6 +897,51 @@ export class AIPlayer {
         const strategyMultiplier = this.getStrategyMultiplier(strategy);
         
         return expectedValue * strategyMultiplier;
+    }
+
+    /**
+     * 计算克制潜力奖励
+     */
+    calculateCounterPotential(position, threatEnemies) {
+        let counterBonus = 0;
+        const gameState = this.gameEngine.gameState;
+        const aiFaction = gameState.aiFaction;
+        const unknownAICards = gameState.cardsData.filter(card => 
+            !card.isRevealed && card.faction === aiFaction
+        );
+        
+        // 计算翻出能克制威胁牌的己方牌的概率
+        threatEnemies.forEach(threat => {
+            const distance = this.getDistance(position, threat.position);
+            if (distance <= 2) {
+                // 计算有多少张未知己方牌能克制这个威胁
+                const counters = unknownAICards.filter(card => {
+                    const result = this.gameEngine.battleResolver.resolveBattle(card, threat);
+                    return result === 'win';
+                });
+                
+                if (counters.length > 0) {
+                    const probability = counters.length / unknownAICards.length;
+                    counterBonus += probability * (3 - distance) * 15; // 概率 × 距离奖励 × 系数
+                }
+            }
+        });
+        
+        return counterBonus;
+    }
+
+    /**
+     * 智能期望价值计算
+     */
+    calculateSmartExpectedValue(cards, positionValue) {
+        if (cards.length === 0) return 0;
+        
+        const totalValue = cards.reduce((sum, card) => {
+            const smartValue = this.calculateSmartCardValue(card);
+            return sum + smartValue * positionValue;
+        }, 0);
+        
+        return totalValue / cards.length;
     }
 
     /**
@@ -886,7 +1077,7 @@ export class AIPlayer {
     }
     
     /**
-     * 制定移动决策
+     * 制定移动决策 - 基于智能消灭策略
      * @returns {Object} 移动决策
      */
     makeMoveDecision() {
@@ -900,39 +1091,187 @@ export class AIPlayer {
             return this.makeFlipDecision();
         }
         
-        // 寻找最佳移动机会
+        // 智能移动策略：优先发挥大牌和无敌牌的优势
         let bestMove = null;
         let bestScore = -Infinity;
         
-        for (const aiCard of aiCards) {
-            const moves = this.getValidMoves(aiCard);
-            for (const move of moves) {
-                const moveScore = this.evaluateMove(aiCard, move);
-                if (moveScore > bestScore) {
-                    bestScore = moveScore;
-                    bestMove = {
-                        from: aiCard.position,
-                        to: move,
-                        score: moveScore,
-                        card: aiCard
-                    };
+        // 1. 优先移动无敌牌去消灭敌方
+        const invincibleCards = aiCards.filter(card => this.isInvincibleCard(card, this.getEnemyCards()));
+        if (invincibleCards.length > 0) {
+            this.logThinking('发现无敌牌，优先发挥其优势', 'prioritize_invincible', {
+                invincibleCards: invincibleCards.map(c => c.name)
+            });
+            
+            for (const invincible of invincibleCards) {
+                const moves = this.getValidMoves(invincible);
+                for (const move of moves) {
+                    const moveScore = this.evaluateInvincibleMove(invincible, move);
+                    if (moveScore > bestScore) {
+                        bestScore = moveScore;
+                        bestMove = {
+                            from: invincible.position,
+                            to: move,
+                            score: moveScore,
+                            card: invincible,
+                            type: 'invincible_move'
+                        };
+                    }
                 }
             }
         }
         
-        if (bestMove && bestMove.score > -1) { // 降低移动门槛，允许一些风险移动
-            this.logThinking('找到移动机会', 'move_found', bestMove);
+        // 2. 如果没有无敌牌的好移动，考虑所有卡牌的移动
+        if (!bestMove || bestScore < 20) {
+            for (const aiCard of aiCards) {
+                const moves = this.getValidMoves(aiCard);
+                for (const move of moves) {
+                    const moveScore = this.evaluateSmartMove(aiCard, move);
+                    if (moveScore > bestScore) {
+                        bestScore = moveScore;
+                        bestMove = {
+                            from: aiCard.position,
+                            to: move,
+                            score: moveScore,
+                            card: aiCard,
+                            type: 'smart_move'
+                        };
+                    }
+                }
+            }
+        }
+        
+        if (bestMove && bestScore > 0) {
+            this.logThinking('找到智能移动机会', 'smart_move_found', {
+                ...bestMove,
+                reasoning: bestMove.type === 'invincible_move' ? '发挥无敌牌优势' : '智能战术移动'
+            });
             return {
                 action: 'move',
                 from: bestMove.from,
                 to: bestMove.to,
-                confidence: Math.min(0.8, 0.4 + bestMove.score * 0.1),
-                reasoning: `移动${bestMove.card.name}到(${bestMove.to.row}, ${bestMove.to.col})，预期得分: ${bestMove.score.toFixed(2)}`
+                confidence: Math.min(0.9, 0.5 + bestScore * 0.1),
+                reasoning: `${bestMove.reasoning || '移动'}${bestMove.card.name}，得分: ${bestScore.toFixed(2)}`
             };
         }
         
-        this.logThinking('没有好的移动机会，尝试翻牌', 'move_no_good_opportunity');
+        this.logThinking('没有好的移动机会，尝试翻牌', 'move_no_opportunity');
         return this.makeFlipDecision();
+    }
+
+    /**
+     * 评估无敌牌移动
+     */
+    evaluateInvincibleMove(card, targetPosition) {
+        const gameState = this.gameEngine.gameState;
+        const targetCard = gameState.getCardAt(targetPosition.row, targetPosition.col);
+        
+        let score = 0;
+        
+        if (targetCard && targetCard.owner === 'player') {
+            // 无敌牌攻击敌方牌：超高奖励
+            const enemyValue = this.calculateSmartCardValue(targetCard);
+            score = enemyValue * 3.0 + 50; // 无敌牌消灭敌方的超高奖励
+            
+            this.logThinking('无敌牌攻击机会', 'invincible_attack', {
+                invincibleCard: card.name,
+                targetCard: targetCard.name,
+                score
+            });
+        } else if (!targetCard) {
+            // 无敌牌移动到战略位置
+            const positionValue = this.getPositionValue(targetPosition);
+            score = positionValue * 15; // 无敌牌占据战略位置的高价值
+            
+            // 移动到敌方附近准备下回合攻击
+            const nearbyEnemies = this.getNearbyEnemies(targetPosition, 1);
+            score += nearbyEnemies.length * 10;
+            
+            this.logThinking('无敌牌战略移动', 'invincible_positioning', {
+                invincibleCard: card.name,
+                targetPosition,
+                nearbyEnemies: nearbyEnemies.length,
+                score
+            });
+        }
+        
+        return score;
+    }
+
+    /**
+     * 智能移动评估
+     */
+    evaluateSmartMove(card, targetPosition) {
+        const gameState = this.gameEngine.gameState;
+        const targetCard = gameState.getCardAt(targetPosition.row, targetPosition.col);
+        
+        let score = 0;
+        
+        if (targetCard && targetCard.owner === 'player') {
+            // 使用智能攻击评估
+            return this.evaluateAttackAdvanced(card, targetCard, targetPosition);
+        } else if (!targetCard) {
+            // 空位移动：基于战略价值
+            const positionValue = this.getPositionValue(targetPosition);
+            score = positionValue * 5;
+            
+            // 支援己方卡牌
+            const nearbyAllies = this.getNearbyAllies(targetPosition, 1);
+            score += nearbyAllies.length * 3;
+            
+            // 威胁敌方卡牌
+            const nearbyEnemies = this.getNearbyEnemies(targetPosition, 1);
+            const threatBonus = nearbyEnemies.reduce((sum, enemy) => {
+                const battleResult = this.gameEngine.battleResolver.resolveBattle(card, enemy);
+                return sum + (battleResult === 'win' ? 8 : 0);
+            }, 0);
+            score += threatBonus;
+            
+            // 避开风险
+            const riskPenalty = this.calculateMoveRisk(card, targetPosition);
+            score -= riskPenalty;
+        }
+        
+        return score;
+    }
+
+    /**
+     * 获取附近的敌方卡牌
+     */
+    getNearbyEnemies(position, maxDistance) {
+        const enemyCards = this.getEnemyCards();
+        return enemyCards.filter(enemy => {
+            const distance = this.getDistance(position, enemy.position);
+            return distance <= maxDistance;
+        });
+    }
+
+    /**
+     * 获取附近的己方卡牌
+     */
+    getNearbyAllies(position, maxDistance) {
+        const allyCards = this.getAllyCards();
+        return allyCards.filter(ally => {
+            const distance = this.getDistance(position, ally.position);
+            return distance <= maxDistance;
+        });
+    }
+
+    /**
+     * 计算移动风险
+     */
+    calculateMoveRisk(card, newPosition) {
+        const nearbyEnemies = this.getNearbyEnemies(newPosition, 1);
+        let risk = 0;
+        
+        nearbyEnemies.forEach(enemy => {
+            const battleResult = this.gameEngine.battleResolver.resolveBattle(enemy, card);
+            if (battleResult === 'win') {
+                const cardValue = this.calculateSmartCardValue(card);
+                risk += cardValue * 0.8; // 被消灭的风险
+            }
+        });
+        
+        return risk;
     }
     
     /**
@@ -1129,11 +1468,61 @@ export class AIPlayer {
     }
 
     /**
-     * 高级攻击评估 - 考虑战略价值
+     * 高级攻击评估 - 考虑战略价值和智能消灭原则
      */
     evaluateAttackAdvanced(aiCard, playerCard, targetPosition) {
-        // 基础攻击评分
-        const baseScore = this.evaluateAttack(aiCard, playerCard);
+        // 智能价值评估
+        const aiCardValue = this.calculateSmartCardValue(aiCard);
+        const playerCardValue = this.calculateSmartCardValue(playerCard);
+        
+        // 战斗结果预测
+        const battleResult = this.gameEngine.battleResolver.resolveBattle(aiCard, playerCard);
+        
+        // 基础评分：基于智能消灭原则
+        let baseScore = 0;
+        switch (battleResult) {
+            case 'win':
+                // 胜利：保留己方牌价值 + 消灭敌方牌价值
+                baseScore = aiCardValue * 1.5 + playerCardValue * 2.0 + 30;
+                
+                // 特殊奖励：消灭敌方威胁牌
+                if (this.isHighThreatCard(playerCard)) {
+                    baseScore += 20;
+                    this.logThinking('消灭高威胁敌方牌', 'eliminate_threat', {
+                        targetCard: playerCard.name,
+                        threatLevel: playerCard.level
+                    });
+                }
+                break;
+                
+            case 'lose':
+                // 失败：绝对禁止小牌攻击大牌
+                const valueLoss = aiCardValue * -3.0 - 100;
+                baseScore = valueLoss;
+                
+                // 严厉惩罚：小牌攻击大牌
+                if (aiCard.level > playerCard.level) {
+                    baseScore -= 200; // 严厉惩罚
+                    this.logThinking('禁止小牌攻击大牌', 'prevent_suicide_attack', {
+                        aiCard: aiCard.name,
+                        playerCard: playerCard.name,
+                        aiLevel: aiCard.level,
+                        playerLevel: playerCard.level
+                    });
+                }
+                break;
+                
+            case 'draw':
+                // 平局：价值交换分析
+                const exchangeValue = playerCardValue - aiCardValue;
+                baseScore = exchangeValue * 1.5;
+                
+                // 如果能换掉敌方关键牌，可以接受
+                if (this.isKeyEnemyCard(playerCard)) {
+                    baseScore += 15;
+                }
+                break;
+        }
         
         // 战略价值评估
         const strategicValue = this.evaluateStrategicValue(aiCard, playerCard, targetPosition);
@@ -1141,19 +1530,83 @@ export class AIPlayer {
         // 风险评估
         const riskAssessment = this.assessAttackRisk(aiCard, targetPosition);
         
+        // 无敌牌保护：如果AI卡是无敌牌，避免不必要的风险
+        if (this.isInvincibleCard(aiCard, this.getEnemyCards())) {
+            riskAssessment *= 2.0; // 加倍风险惩罚
+            this.logThinking('保护无敌牌', 'protect_invincible', {
+                card: aiCard.name,
+                level: aiCard.level
+            });
+        }
+        
         // 综合评分
         const finalScore = baseScore + strategicValue - riskAssessment;
         
-        this.logThinking('高级攻击评估', 'attack_evaluation_advanced', {
+        this.logThinking('智能攻击评估', 'smart_attack_evaluation', {
             aiCard: aiCard.name,
             playerCard: playerCard.name,
-            baseScore,
-            strategicValue,
-            riskAssessment,
-            finalScore
+            battleResult,
+            aiCardValue: aiCardValue.toFixed(2),
+            playerCardValue: playerCardValue.toFixed(2),
+            baseScore: baseScore.toFixed(2),
+            strategicValue: strategicValue.toFixed(2),
+            riskAssessment: riskAssessment.toFixed(2),
+            finalScore: finalScore.toFixed(2)
         });
         
         return finalScore;
+    }
+
+    /**
+     * 检测高威胁敌方牌
+     */
+    isHighThreatCard(card) {
+        // 8级牌（可以吃1级王牌）
+        if (card.level === 8) return true;
+        
+        // 1级王牌
+        if (card.level === 1) return true;
+        
+        // 能消灭多张己方牌的敌方牌
+        const allyCards = this.getAllyCards();
+        const canEliminate = allyCards.filter(ally => {
+            const result = this.gameEngine.battleResolver.resolveBattle(card, ally);
+            return result === 'win';
+        });
+        
+        return canEliminate.length >= 2;
+    }
+
+    /**
+     * 检测关键敌方牌
+     */
+    isKeyEnemyCard(card) {
+        // 敌方最强的几张牌
+        const enemyCards = this.getEnemyCards();
+        const sortedEnemies = enemyCards.sort((a, b) => a.level - b.level);
+        const topEnemies = sortedEnemies.slice(0, 3); // 前3强
+        
+        return topEnemies.includes(card);
+    }
+
+    /**
+     * 获取己方所有卡牌
+     */
+    getAllyCards() {
+        const gameState = this.gameEngine.gameState;
+        return gameState.cardsData.filter(card => 
+            card.isRevealed && card.owner === 'ai'
+        );
+    }
+
+    /**
+     * 获取敌方所有卡牌
+     */
+    getEnemyCards() {
+        const gameState = this.gameEngine.gameState;
+        return gameState.cardsData.filter(card => 
+            card.isRevealed && card.owner === 'player'
+        );
     }
 
     /**
