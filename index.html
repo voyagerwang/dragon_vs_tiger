@@ -90,17 +90,17 @@
 
         /* 高亮可移动位置 */
         .board-cell.movable {
-            border-color: #27ae60;
-            background: #d5f4e6;
-            box-shadow: 0 0 15px rgba(39, 174, 96, 0.4);
+            border-color: #27ae60 !important;
+            background: #d5f4e6 !important;
+            box-shadow: 0 0 15px rgba(39, 174, 96, 0.4) !important;
             animation: pulse 1.5s infinite;
         }
 
         /* 高亮可攻击位置 */
         .board-cell.attackable {
-            border-color: #e74c3c;
-            background: #fadbd8;
-            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4);
+            border-color: #e74c3c !important;
+            background: #fadbd8 !important;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.4) !important;
             animation: pulse 1.5s infinite;
         }
 
@@ -434,9 +434,9 @@
             <h2>🐉 龙虎斗 🐅</h2>
             <div class="game-intro">
                 <h3>玩法简介：</h3>
-                <p>1. 龙虎两阵营各8张牌，按等级大吃小（1最强，8最弱），相同等级同归于尽</p>
+                <p>1. 龙虎两阵营各8张牌，按牌等级大吃小（1最强，8最弱），相同等级同归于尽</p>
                 <p>2. 特例：8-小王虎可吃1-龙王，8-变形龙可吃1-虎王</p>
-                <p>3. 首次翻牌决定双方阵营，每回合可选择翻牌或者走棋，走棋一次只能移动一格，尽可能的消灭对方阵营吧~</p>
+                <p>3. 首次翻牌决定双方阵营，每回合可选择翻牌或者走棋，走棋一次只能移动一格，尽可能的消灭对方的牌，取得最终胜利🏆~</p>
             </div>
             <button id="start-btn" class="button start-game">开始游戏</button>
         </div>
