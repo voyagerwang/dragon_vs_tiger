@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>龍虎鬥 - 简化版</title>
+    <title>龍虎斗 - 简化版</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -374,7 +374,7 @@
 </head>
 <body>
     <div class="game-container">
-        <div class="game-title">龍虎鬥</div>
+        <div class="game-title">龍虎斗</div>
         
         <div class="game-header">
             <div class="header-item">
@@ -407,8 +407,8 @@
     <!-- 开始游戏遮罩层 -->
     <div id="start-game-overlay" class="start-game-overlay">
         <div class="start-game-modal">
-            <h2>🐉 龍虎鬥 🐅</h2>
-            <p>欢迎来到龍虎鬥游戏！<br>点击开始按钮开始游戏</p>
+            <h2>🐉 龍虎斗 🐅</h2>
+            <p>欢迎来到龍虎斗游戏！<br>点击开始按钮开始游戏</p>
             <button id="start-btn" class="button start-game">开始游戏</button>
         </div>
     </div>
@@ -429,7 +429,7 @@
                 this.createBoard();
                 this.bindEvents();
                 this.renderBoard(); // 默认显示卡牌背面
-                this.log('简化版龍虎鬥游戏已初始化');
+                this.log('简化版龍虎斗游戏已初始化');
             }
             
             createBoard() {
@@ -771,9 +771,9 @@
                 }
                 
                 playerFaction.textContent = gameState.playerFaction ? 
-                    (gameState.playerFaction === 'dragon' ? '龙阵营' : '虎阵营') : '未确定';
+                    (gameState.playerFaction === 'dragon' ? '🐉 龙' : '🐅 虎') : '未确定';
                 aiFaction.textContent = gameState.aiFaction ? 
-                    (gameState.aiFaction === 'dragon' ? '龙阵营' : '虎阵营') : '未确定';
+                    (gameState.aiFaction === 'dragon' ? '🐉 龙' : '🐅 虎') : '未确定';
             }
             
             updateStats() {
