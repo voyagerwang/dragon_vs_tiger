@@ -258,6 +258,205 @@
             line-height: 1.4;
             font-size: 14px;
         }
+
+        /* 卡牌演示和翻牌机制区域样式 */
+        .demo-section {
+            display: flex;
+            gap: 30px;
+            margin: 25px 0;
+            justify-content: space-between;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .card-demo, .flip-mechanism {
+            flex: 1;
+            padding: 15px;
+            background: transparent;
+            border-radius: 8px;
+            border: none;
+        }
+
+        .card-demo h4, .flip-mechanism h4 {
+            margin: 0 0 15px 0;
+            color: #FFD700;
+            font-size: 16px;
+            text-align: left;
+        }
+
+        .demo-card-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .demo-card {
+            height: 112px;
+            width: auto;
+            max-width: 135px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background-size: contain !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+        }
+
+        .demo-card.back-card {
+            background: url('assets/cards/card_back.png') center/contain no-repeat;
+            width: 80px;
+        }
+
+        .demo-card.flipped {
+            background: url('assets/images/dragon-card-example.png') center/contain no-repeat;
+            width: 135px;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .card-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .flip-instruction {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .flip-arrow {
+            font-size: 18px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-8px);
+            }
+            60% {
+                transform: translateY(-4px);
+            }
+        }
+
+        .demo-instruction {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .flip-mechanism ul {
+            margin: 0;
+            padding-left: 20px;
+            color: rgba(255, 255, 255, 0.9);
+            text-align: left;
+        }
+
+        .flip-mechanism li {
+            margin: 0 0 8px 0;
+            line-height: 1.4;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        /* 响应式设计 - 优化左右布局 */
+        @media (max-width: 768px) {
+            .demo-section {
+                flex-direction: row;
+                gap: 20px;
+                padding: 15px;
+                align-items: flex-start;
+            }
+            
+            .card-demo {
+                flex: 0 0 auto;
+                width: 140px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .flip-mechanism {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .demo-card {
+                height: 90px;
+                margin-bottom: 10px;
+            }
+            
+            .demo-card.back-card {
+                width: 65px;
+            }
+            
+            .demo-card.flipped {
+                width: 108px;
+            }
+            
+            .demo-card-container {
+                align-items: center;
+                width: 100%;
+            }
+            
+            .flip-instruction {
+                justify-content: center;
+                text-align: center;
+                font-size: 12px;
+            }
+            
+            .flip-arrow {
+                font-size: 16px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .demo-section {
+                gap: 15px;
+                padding: 12px;
+            }
+            
+            .card-demo {
+                width: 120px;
+            }
+            
+            .demo-card {
+                height: 84px;
+            }
+            
+            .demo-card.back-card {
+                width: 60px;
+            }
+            
+            .demo-card.flipped {
+                width: 101px;
+            }
+            
+            .flip-instruction {
+                font-size: 11px;
+            }
+        }
         
         .controls {
             background: rgba(255,255,255,0.1);
@@ -335,7 +534,30 @@
             
             .header-item {
                 font-size: 12px;
-                gap: 5px;
+            }
+            
+            /* 移动端演示区域优化 */
+            .demo-section {
+                margin: 20px 0;
+                padding: 15px;
+            }
+            
+            .card-demo h4, .flip-mechanism h4 {
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+            
+            .flip-mechanism ul {
+                font-size: 13px;
+                line-height: 1.4;
+            }
+            
+            .flip-mechanism li {
+                margin-bottom: 8px;
+            }
+            
+            .game-status {
+                font-size: 16px;
             }
             
             .game-status {
@@ -395,6 +617,110 @@
             .game-status {
                 font-size: 14px;
             }
+            
+            /* 超小屏幕演示区域优化 - 保持左右布局 */
+            .demo-section {
+                flex-direction: row;
+                gap: 12px;
+                padding: 10px;
+                align-items: flex-start;
+            }
+            
+            .card-demo {
+                width: 100px;
+                flex-shrink: 0;
+            }
+            
+            .flip-mechanism {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .demo-card {
+                height: 70px;
+                margin-bottom: 8px;
+            }
+            
+            .demo-card.back-card {
+                width: 50px;
+            }
+            
+            .demo-card.flipped {
+                width: 84px;
+            }
+            
+            .card-demo h4, .flip-mechanism h4 {
+                font-size: 13px;
+                margin-bottom: 10px;
+            }
+            
+            .flip-mechanism ul {
+                font-size: 12px;
+                line-height: 1.3;
+            }
+            
+            .flip-mechanism li {
+                margin-bottom: 6px;
+            }
+            
+            .flip-instruction {
+                font-size: 10px;
+            }
+            
+            .flip-arrow {
+                font-size: 14px;
+            }
+        }
+        
+        /* 极超小屏幕适配 */
+        @media (max-width: 360px) {
+            .demo-section {
+                gap: 10px;
+                padding: 8px;
+            }
+            
+            .card-demo {
+                width: 90px;
+            }
+            
+            .flip-mechanism {
+                flex: 1;
+            }
+            
+            .demo-card {
+                height: 65px;
+                margin-bottom: 6px;
+            }
+            
+            .demo-card.back-card {
+                width: 45px;
+            }
+            
+            .demo-card.flipped {
+                width: 78px;
+            }
+            
+            .card-demo h4, .flip-mechanism h4 {
+                font-size: 12px;
+                margin-bottom: 8px;
+            }
+            
+            .flip-mechanism ul {
+                font-size: 11px;
+                line-height: 1.2;
+            }
+            
+            .flip-mechanism li {
+                margin-bottom: 5px;
+            }
+            
+            .flip-instruction {
+                font-size: 9px;
+            }
+            
+            .flip-arrow {
+                font-size: 12px;
+            }
         }
     </style>
 </head>
@@ -431,13 +757,39 @@
     <!-- 开始游戏遮罩层 -->
     <div id="start-game-overlay" class="start-game-overlay">
         <div class="start-game-modal">
-            <h2>🐉 龙虎斗 🐅</h2>
+            <h2>🐲 龙虎斗 🐯</h2>
             <div class="game-intro">
                 <h3>玩法简介：</h3>
                 <p>1. 龙虎两阵营各8张牌，按牌等级大吃小（1最强，8最弱），相同等级同归于尽</p>
-                <p>2. 特例：8-小王虎可吃1-龙王，8-变形龙可吃1-虎王</p>
+                <p>2. 特例：8级小王虎可吃1级龙王，8级变形龙可吃1级虎王</p>
                 <p>3. 首次翻牌决定双方阵营，每回合可选择翻牌或者走棋，走棋一次只能移动一格，尽可能的消灭对方的牌，取得最终胜利🏆~</p>
             </div>
+            
+            <!-- 卡牌演示和翻牌机制区域 -->
+            <div class="demo-section">
+                <div class="card-demo">
+                    <h4>卡牌演示</h4>
+                    <div class="demo-card-container">
+                        <div class="demo-card back-card" id="demo-card">
+                            <div class="card-content"></div>
+                        </div>
+                        <div class="flip-instruction">
+                            <span class="flip-arrow">👆</span>
+                            <span class="demo-instruction">点击翻转牌面</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flip-mechanism">
+                    <h4>翻牌机制</h4>
+                    <ul>
+                        <li>点击背面朝上的卡牌即可翻开</li>
+                        <li>首次翻牌将决定您的阵营</li>
+                        <li>每张牌都有等级</li>
+                    </ul>
+                </div>
+            </div>
+            
             <button id="start-btn" class="button start-game">开始游戏</button>
         </div>
     </div>
@@ -872,9 +1224,9 @@
                 }
                 
                 playerFaction.textContent = gameState.playerFaction ? 
-                    (gameState.playerFaction === 'dragon' ? '🐉 龙' : '🐅 虎') : '未确定';
+                    (gameState.playerFaction === 'dragon' ? '🐲 龙' : '🐯 虎') : '未确定';
                 aiFaction.textContent = gameState.aiFaction ? 
-                    (gameState.aiFaction === 'dragon' ? '🐉 龙' : '🐅 虎') : '未确定';
+                    (gameState.aiFaction === 'dragon' ? '🐲 龙' : '🐯 虎') : '未确定';
             }
             
             updateStats() {
@@ -992,7 +1344,66 @@
         // 启动游戏
         window.addEventListener('DOMContentLoaded', () => {
             window.simpleGame = new SimpleGame();
+            
+            // 初始化卡牌演示功能
+            initCardDemo();
         });
+        
+        // 卡牌演示功能
+        function initCardDemo() {
+            const demoCard = document.getElementById('demo-card');
+            if (!demoCard) return;
+            
+            let isFlipped = false;
+            const dragonCards = [
+                { name: '龙王', level: 1, color: '#e74c3c' },
+                { name: '龙将', level: 2, color: '#e67e22' },
+                { name: '龙兵', level: 3, color: '#f39c12' },
+                { name: '龙卫', level: 4, color: '#d35400' }
+            ];
+            
+            demoCard.addEventListener('click', function() {
+                if (!isFlipped) {
+                    // 翻转到正面
+                    demoCard.style.transform = 'rotateY(180deg)';
+                    
+                    setTimeout(() => {
+                        demoCard.classList.remove('back-card');
+                        demoCard.classList.add('flipped');
+                        demoCard.style.transform = 'rotateY(0deg)';
+                        isFlipped = true;
+                        
+                        // 更新提示文字和图标
+                        const instruction = demoCard.parentElement.querySelector('.demo-instruction');
+                        const arrow = demoCard.parentElement.querySelector('.flip-arrow');
+                        if (instruction) {
+                            instruction.textContent = '翻转完成';
+                        }
+                        if (arrow) {
+                            arrow.textContent = '✅';
+                            arrow.style.animation = 'none';
+                        }
+                        
+                        // 移除点击事件
+                        demoCard.style.cursor = 'default';
+                        demoCard.onclick = null;
+                    }, 150);
+                }
+            });
+            
+            // 添加悬停效果（仅在未翻转时）
+            demoCard.addEventListener('mouseenter', function() {
+                if (!isFlipped) {
+                    this.style.transform = 'translateY(-5px) scale(1.05)';
+                }
+            });
+            
+            demoCard.addEventListener('mouseleave', function() {
+                if (!isFlipped) {
+                    this.style.transform = 'translateY(0) scale(1)';
+                }
+            });
+        }
     </script>
 </body>
 </html>

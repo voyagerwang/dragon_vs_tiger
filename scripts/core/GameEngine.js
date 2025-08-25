@@ -6,13 +6,13 @@
 import { GameState } from './GameState.js';
 import { BattleResolver } from './BattleResolver.js';
 import { Card } from './Card.js';
-import { AIPlayer } from '../ai/AIPlayer.js';
+import { EnhancedAIPlayer } from '../ai/EnhancedAIPlayer.js';
 
 export class GameEngine {
     constructor() {
         this.gameState = new GameState();
         this.battleResolver = new BattleResolver();
-        this.aiPlayer = new AIPlayer(this);
+        this.aiPlayer = new EnhancedAIPlayer(this);
         this.gameId = this.generateGameId();
         this.eventListeners = new Map();
         this.saveKey = 'dragon_tiger_save';

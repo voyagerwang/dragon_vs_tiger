@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简化AI测试 - 龙虎斗</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .test-panel {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .log {
+            background: rgba(0,0,0,0.5);
+            padding: 15px;
+            border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .metric {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-panel">
+            <h1>🤖 AI决策测试工具</h1>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value" id="flip-count">0</div>
+                    <div>翻牌次数</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="move-count">0</div>
+                    <div>移动次数</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="attack-count">0</div>
+                    <div>攻击次数</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="total-tests">0</div>
+                    <div>总测试数</div>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="runSimpleTest()">运行基础测试</button>
+            <button class="btn" onclick="runDecisionTest()">运行决策测试</button>
+            <button class="btn" onclick="clearLog()">清除日志</button>
+            
+            <div class="log" id="test-log">
+                <div>[系统] 简化AI测试工具已加载</div>
+                <div>[提示] 点击按钮开始测试</div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { GameEngine } from './scripts/core/GameEngine.js';
+        
+        let testStats = {
+            flipCount: 0,
+            moveCount: 0,
+            attackCount: 0,
+            totalTests: 0
+        };
+        
+        function log(message) {
+            const logElement = document.getElementById('test-log');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.textContent = `[${time}] ${message}`;
+            logElement.appendChild(div);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateMetrics() {
+            document.getElementById('flip-count').textContent = testStats.flipCount;
+            document.getElementById('move-count').textContent = testStats.moveCount;
+            document.getElementById('attack-count').textContent = testStats.attackCount;
+            document.getElementById('total-tests').textContent = testStats.totalTests;
+        }
+        
+        // 运行基础测试
+        window.runSimpleTest = async function() {
+            log('🚀 开始基础测试...');
+            
+            try {
+                const engine = new GameEngine();
+                
+                // 测试游戏引擎初始化
+                const startResult = engine.startNewGame();
+                if (startResult.success) {
+                    log('✅ 游戏引擎初始化成功');
+                } else {
+                    log('❌ 游戏引擎初始化失败');
+                    return;
+                }
+                
+                // 测试棋盘初始化
+                engine.gameState.phase = 'playing';
+                const boardResult = engine.initializeBoard();
+                if (boardResult.success) {
+                    log('✅ 棋盘初始化成功');
+                } else {
+                    log('❌ 棋盘初始化失败');
+                    return;
+                }
+                
+                // 测试AI执行
+                engine.gameState.currentPlayer = 'ai';
+                const aiResult = await engine.executeAITurn();
+                
+                if (aiResult.success) {
+                    log(`✅ AI执行成功，动作: ${aiResult.data.action}`);
+                    
+                    testStats.totalTests++;
+                    switch (aiResult.data.action) {
+                        case 'flip':
+                            testStats.flipCount++;
+                            break;
+                        case 'move':
+                            testStats.moveCount++;
+                            break;
+                        case 'attack':
+                            testStats.attackCount++;
+                            break;
+                    }
+                    updateMetrics();
+                } else {
+                    log(`❌ AI执行失败: ${aiResult.error || '未知错误'}`);
+                }
+                
+            } catch (error) {
+                log(`❌ 测试过程出错: ${error.message}`);
+                console.error('Test error:', error);
+            }
+        };
+        
+        // 运行决策测试
+        window.runDecisionTest = async function() {
+            log('🎯 开始决策模式测试...');
+            
+            const testCount = 10;
+            
+            for (let i = 0; i < testCount; i++) {
+                try {
+                    log(`📊 测试 ${i + 1}/${testCount}...`);
+                    
+                    const engine = new GameEngine();
+                    engine.startNewGame();
+                    engine.gameState.phase = 'playing';
+                    engine.initializeBoard();
+                    engine.gameState.currentPlayer = 'ai';
+                    
+                    const result = await engine.executeAITurn();
+                    
+                    if (result.success) {
+                        testStats.totalTests++;
+                        const action = result.data.action;
+                        
+                        switch (action) {
+                            case 'flip':
+                                testStats.flipCount++;
+                                break;
+                            case 'move':
+                                testStats.moveCount++;
+                                break;
+                            case 'attack':
+                                testStats.attackCount++;
+                                break;
+                        }
+                        
+                        log(`   ✅ 动作: ${action}`);
+                    } else {
+                        log(`   ❌ 失败: ${result.error || '未知错误'}`);
+                    }
+                    
+                    // 每5次更新一次指标
+                    if ((i + 1) % 5 === 0) {
+                        updateMetrics();
+                    }
+                    
+                } catch (error) {
+                    log(`   ❌ 测试${i + 1}出错: ${error.message}`);
+                }
+                
+                // 短暂延迟避免阻塞
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            updateMetrics();
+            
+            // 计算比例
+            const total = testStats.totalTests;
+            if (total > 0) {
+                const flipRate = ((testStats.flipCount / total) * 100).toFixed(1);
+                const moveRate = ((testStats.moveCount / total) * 100).toFixed(1);
+                const attackRate = ((testStats.attackCount / total) * 100).toFixed(1);
+                
+                log(`📈 测试结果统计:`);
+                log(`   翻牌率: ${flipRate}%`);
+                log(`   移动率: ${moveRate}%`);
+                log(`   攻击率: ${attackRate}%`);
+                
+                if (parseFloat(flipRate) > 80) {
+                    log(`⚠️ 警告: 翻牌率过高 (${flipRate}%)，AI可能过度依赖翻牌`);
+                } else if (parseFloat(flipRate) < 30) {
+                    log(`✅ 良好: 翻牌率适中 (${flipRate}%)，AI策略平衡`);
+                } else {
+                    log(`✅ 正常: 翻牌率 (${flipRate}%) 在合理范围内`);
+                }
+            }
+            
+            log('🎯 决策测试完成!');
+        };
+        
+        // 清除日志
+        window.clearLog = function() {
+            document.getElementById('test-log').innerHTML = '<div>[系统] 日志已清除</div>';
+            testStats = {
+                flipCount: 0,
+                moveCount: 0,
+                attackCount: 0,
+                totalTests: 0
+            };
+            updateMetrics();
+        };
+        
+        // 页面加载完成后自动运行一次基础测试
+        setTimeout(() => {
+            log('🔄 自动执行初始化测试...');
+            runSimpleTest();
+        }, 1000);
+    </script>
+</body>
+</html>

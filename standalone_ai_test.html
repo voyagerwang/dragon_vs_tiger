@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>独立AI测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #1a1a2e; 
+            color: white; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .btn { 
+            background: #0f4c75; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .btn:hover { background: #3282b8; }
+        .log { 
+            background: #16213e; 
+            padding: 15px; 
+            border-radius: 5px; 
+            height: 500px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 13px;
+            margin-top: 15px;
+            border: 1px solid #0f4c75;
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #4ecdc4; }
+        .warning { color: #ffe66d; }
+        .info { color: #a8dadc; }
+        .important { 
+            background: #2a2a3e; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            border-left: 4px solid #3282b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 独立AI诊断工具</h1>
+        
+        <div class="important">
+            <h3>⚠️ 模块导入问题诊断</h3>
+            <p>检测到ES6模块导入失败。这通常是因为：</p>
+            <ul>
+                <li>直接打开HTML文件（file://协议）</li>
+                <li>需要通过HTTP服务器运行</li>
+            </ul>
+        </div>
+        
+        <button class="btn" onclick="checkEnvironment()">检查运行环境</button>
+        <button class="btn" onclick="testGameAccess()">测试游戏访问</button>
+        <button class="btn" onclick="provideSolution()">提供解决方案</button>
+        <button class="btn" onclick="clearLog()">清除日志</button>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script>
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<span style="color: #666">[${time}]</span> ${msg}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function checkEnvironment() {
+            log('🔍 开始环境检查...', 'info');
+            
+            // 检查协议
+            const protocol = window.location.protocol;
+            log(`📋 当前协议: ${protocol}`, 'info');
+            
+            if (protocol === 'file:') {
+                log('❌ 检测到 file:// 协议', 'error');
+                log('⚠️ ES6 模块在 file:// 协议下无法工作', 'warning');
+                log('💡 需要使用 HTTP 服务器运行', 'warning');
+            } else if (protocol === 'http:' || protocol === 'https:') {
+                log('✅ HTTP/HTTPS 协议正常', 'success');
+            }
+            
+            // 检查当前URL
+            log(`📍 当前URL: ${window.location.href}`, 'info');
+            
+            // 检查是否支持ES6模块
+            const supportsModules = 'noModule' in document.createElement('script');
+            log(`📦 ES6模块支持: ${supportsModules ? '✅ 支持' : '❌ 不支持'}`, supportsModules ? 'success' : 'error');
+            
+            // 检查浏览器
+            log(`🌐 用户代理: ${navigator.userAgent}`, 'info');
+        }
+        
+        function testGameAccess() {
+            log('🎮 测试游戏文件访问...', 'info');
+            
+            // 测试主页面是否可访问
+            const gameUrl = './index.html';
+            
+            fetch(gameUrl)
+                .then(response => {
+                    if (response.ok) {
+                        log('✅ 主游戏页面可访问', 'success');
+                        log(`📊 状态码: ${response.status}`, 'info');
+                    } else {
+                        log(`❌ 主游戏页面访问失败: ${response.status}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    log(`❌ 无法访问主游戏页面: ${error.message}`, 'error');
+                    
+                    if (window.location.protocol === 'file:') {
+                        log('🔧 这是因为 file:// 协议的限制', 'warning');
+                    }
+                });
+        }
+        
+        function provideSolution() {
+            log('💡 提供解决方案...', 'info');
+            log('', 'info');
+            log('🚀 解决 ES6 模块导入问题的方法:', 'success');
+            log('', 'info');
+            
+            log('方法1: 使用本地HTTP服务器', 'success');
+            log('  ▸ Python: python -m http.server 8000', 'info');
+            log('  ▸ Node.js: npx http-server', 'info');
+            log('  ▸ PHP: php -S localhost:8000', 'info');
+            log('  ▸ 然后访问: http://localhost:8000', 'info');
+            log('', 'info');
+            
+            log('方法2: 使用Live Server (推荐)', 'success');
+            log('  ▸ VS Code: 安装Live Server插件', 'info');
+            log('  ▸ 右键HTML文件 -> Open with Live Server', 'info');
+            log('', 'info');
+            
+            log('方法3: 使用在线环境', 'success');
+            log('  ▸ 将项目上传到 GitHub Pages', 'info');
+            log('  ▸ 或使用 CodePen、JSFiddle 等', 'info');
+            log('', 'info');
+            
+            log('🎯 推荐操作步骤:', 'warning');
+            log('  1. 在项目根目录打开终端', 'info');
+            log('  2. 运行: python -m http.server 8000', 'info');
+            log('  3. 浏览器访问: http://localhost:8000', 'info');
+            log('  4. 打开 index.html 开始游戏', 'info');
+            log('  5. 或打开 ai_fix_test.html 进行AI测试', 'info');
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('📝 日志已清除', 'info');
+        }
+        
+        // 页面加载后自动检查环境
+        setTimeout(() => {
+            log('🚀 独立AI诊断工具已加载', 'info');
+            log('', 'info');
+            
+            if (window.location.protocol === 'file:') {
+                log('⚠️ 检测到您正在使用 file:// 协议', 'warning');
+                log('💡 这会导致 ES6 模块无法加载', 'warning');
+                log('🔧 请点击"提供解决方案"获取解决方法', 'warning');
+            } else {
+                log('✅ 运行环境正常，可以进行AI测试', 'success');
+            }
+            
+            checkEnvironment();
+        }, 500);
+    </script>
+</body>
+</html>

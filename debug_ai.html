@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI调试工具</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #2c3e50; 
+            color: white; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .btn { 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border-radius: 5px;
+        }
+        .btn:hover { background: #2980b9; }
+        .log { 
+            background: #34495e; 
+            padding: 15px; 
+            border-radius: 5px; 
+            height: 400px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        .stats {
+            background: #2c3e50;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐞 AI调试工具</h1>
+        
+        <div class="stats">
+            <div>翻牌: <span id="flip-stat">0</span></div>
+            <div>移动: <span id="move-stat">0</span></div>
+            <div>攻击: <span id="attack-stat">0</span></div>
+            <div>总数: <span id="total-stat">0</span></div>
+        </div>
+        
+        <button class="btn" onclick="testAI()">测试AI一次</button>
+        <button class="btn" onclick="batchTest()">批量测试(10次)</button>
+        <button class="btn" onclick="clearLog()">清除</button>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script type="module">
+        const stats = { flip: 0, move: 0, attack: 0, total: 0 };
+        
+        function log(msg) {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div>[${time}] ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStats() {
+            document.getElementById('flip-stat').textContent = stats.flip;
+            document.getElementById('move-stat').textContent = stats.move;
+            document.getElementById('attack-stat').textContent = stats.attack;
+            document.getElementById('total-stat').textContent = stats.total;
+        }
+        
+        window.testAI = async function() {
+            log('🤖 开始AI测试...');
+            
+            try {
+                // 动态导入游戏引擎
+                const { GameEngine } = await import('./scripts/core/GameEngine.js');
+                
+                const engine = new GameEngine();
+                const startResult = engine.startNewGame();
+                
+                if (!startResult.success) {
+                    log(`❌ 游戏启动失败: ${startResult.error?.message}`);
+                    return;
+                }
+                
+                engine.gameState.phase = 'playing';
+                const boardResult = engine.initializeBoard();
+                
+                if (!boardResult.success) {
+                    log(`❌ 棋盘初始化失败: ${boardResult.message}`);
+                    return;
+                }
+                
+                engine.gameState.currentPlayer = 'ai';
+                
+                log('⏳ AI思考中...');
+                const aiResult = await engine.executeAITurn();
+                
+                if (aiResult.success) {
+                    const action = aiResult.data.action;
+                    log(`✅ AI执行成功: ${action}`);
+                    
+                    stats.total++;
+                    if (action === 'flip') stats.flip++;
+                    else if (action === 'move') stats.move++;
+                    else if (action === 'attack') stats.attack++;
+                    
+                    updateStats();
+                } else {
+                    log(`❌ AI执行失败: ${aiResult.error || JSON.stringify(aiResult)}`);
+                }
+                
+            } catch (error) {
+                log(`❌ 测试出错: ${error.message}`);
+                console.error('AI Test Error:', error);
+            }
+        };
+        
+        window.batchTest = async function() {
+            log('🔄 开始批量测试...');
+            
+            for (let i = 0; i < 10; i++) {
+                log(`--- 测试 ${i + 1}/10 ---`);
+                await testAI();
+                
+                // 短暂延迟
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            log('📊 批量测试完成!');
+            const total = stats.total;
+            if (total > 0) {
+                const flipRate = (stats.flip / total * 100).toFixed(1);
+                log(`翻牌比例: ${flipRate}%`);
+                
+                if (parseFloat(flipRate) > 70) {
+                    log('⚠️ 翻牌比例过高，AI可能过度依赖翻牌');
+                } else {
+                    log('✅ 翻牌比例正常');
+                }
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('log').innerHTML = '';
+            Object.keys(stats).forEach(key => stats[key] = 0);
+            updateStats();
+            log('📝 日志已清除');
+        };
+        
+        // 页面加载后自动测试一次
+        setTimeout(() => {
+            log('🚀 系统初始化完成');
+            testAI();
+        }, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI修复测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #1a1a2e; 
+            color: white; 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .btn { 
+            background: #0f4c75; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .btn:hover { background: #3282b8; }
+        .log { 
+            background: #16213e; 
+            padding: 15px; 
+            border-radius: 5px; 
+            height: 500px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 13px;
+            margin-top: 15px;
+            border: 1px solid #0f4c75;
+        }
+        .error { color: #ff6b6b; }
+        .success { color: #4ecdc4; }
+        .warning { color: #ffe66d; }
+        .info { color: #a8dadc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 AI修复测试工具</h1>
+        <p>专门用于诊断和修复AI执行问题</p>
+        
+        <button class="btn" onclick="testBasicAI()">基础AI测试</button>
+        <button class="btn" onclick="testChessMaster()">象棋策略测试</button>
+        <button class="btn" onclick="testErrorHandling()">错误处理测试</button>
+        <button class="btn" onclick="clearLog()">清除日志</button>
+        
+        <div class="log" id="log"></div>
+    </div>
+    
+    <script type="module">
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<span style="color: #666">[${time}]</span> ${msg}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        window.testBasicAI = async function() {
+            log('🔍 开始基础AI测试...', 'info');
+            
+            try {
+                // 动态导入
+                const { GameEngine } = await import('./scripts/core/GameEngine.js');
+                log('✅ GameEngine导入成功', 'success');
+                
+                const engine = new GameEngine();
+                log('✅ GameEngine实例创建成功', 'success');
+                
+                const startResult = engine.startNewGame();
+                if (startResult.success) {
+                    log('✅ 游戏启动成功', 'success');
+                } else {
+                    log(`❌ 游戏启动失败: ${startResult.error?.message}`, 'error');
+                    return;
+                }
+                
+                engine.gameState.phase = 'playing';
+                const boardResult = engine.initializeBoard();
+                if (boardResult.success) {
+                    log('✅ 棋盘初始化成功', 'success');
+                } else {
+                    log(`❌ 棋盘初始化失败: ${boardResult.message}`, 'error');
+                    return;
+                }
+                
+                // 检查AI实例
+                if (engine.aiPlayer) {
+                    log('✅ AI玩家实例存在', 'success');
+                    log(`📊 AI难度: ${engine.aiPlayer.difficulty}`, 'info');
+                    
+                    // 检查策略实例
+                    if (engine.aiPlayer.strategy) {
+                        log('✅ 增强策略实例存在', 'success');
+                    }
+                    if (engine.aiPlayer.chessMasterStrategy) {
+                        log('✅ 象棋大师策略实例存在', 'success');
+                    }
+                } else {
+                    log('❌ AI玩家实例不存在', 'error');
+                    return;
+                }
+                
+                engine.gameState.currentPlayer = 'ai';
+                log('🤖 准备执行AI回合...', 'info');
+                
+                const aiResult = await engine.executeAITurn();
+                
+                log(`📋 AI执行结果: ${JSON.stringify(aiResult, null, 2)}`, 'info');
+                
+                if (aiResult.success) {
+                    log(`✅ AI执行成功！动作: ${aiResult.data.action}`, 'success');
+                } else {
+                    log(`❌ AI执行失败: ${aiResult.error?.message || JSON.stringify(aiResult.error)}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`💥 测试过程出现异常: ${error.message}`, 'error');
+                log(`📍 错误堆栈: ${error.stack}`, 'error');
+            }
+        };
+        
+        window.testChessMaster = async function() {
+            log('🏛️ 开始象棋策略单独测试...', 'info');
+            
+            try {
+                const { ChessMasterStrategy } = await import('./scripts/ai/ChessMasterStrategy.js');
+                log('✅ ChessMasterStrategy导入成功', 'success');
+                
+                const strategy = new ChessMasterStrategy('medium');
+                log('✅ 象棋策略实例创建成功', 'success');
+                
+                // 模拟游戏状态
+                const mockGameState = {
+                    cardsData: [
+                        { isRevealed: true, owner: 'ai', level: 1, faction: 'dragon', position: { row: 0, col: 0 } },
+                        { isRevealed: true, owner: 'player', level: 6, faction: 'tiger', position: { row: 1, col: 0 } },
+                        { isRevealed: false }
+                    ]
+                };
+                
+                const mockMoves = [
+                    { type: 'attack', card: mockGameState.cardsData[0], target: mockGameState.cardsData[1], canWin: true, targetLevel: 6 },
+                    { type: 'flip', position: { row: 2, col: 0 } }
+                ];
+                
+                log('📊 模拟数据创建完成', 'info');
+                
+                const decision = strategy.makeStrategicDecision(mockGameState, mockMoves);
+                
+                if (decision) {
+                    log(`✅ 象棋策略决策成功: ${decision.type}, 分数: ${decision.score}, 原因: ${decision.reason}`, 'success');
+                } else {
+                    log('❌ 象棋策略决策返回null', 'error');
+                }
+                
+            } catch (error) {
+                log(`💥 象棋策略测试异常: ${error.message}`, 'error');
+                log(`📍 错误堆栈: ${error.stack}`, 'error');
+            }
+        };
+        
+        window.testErrorHandling = async function() {
+            log('🛡️ 开始错误处理测试...', 'info');
+            
+            try {
+                const { GameEngine } = await import('./scripts/core/GameEngine.js');
+                const engine = new GameEngine();
+                
+                engine.startNewGame();
+                engine.gameState.phase = 'playing';
+                engine.initializeBoard();
+                engine.gameState.currentPlayer = 'ai';
+                
+                // 故意制造一个可能导致错误的情况
+                log('🧪 制造测试错误情况...', 'warning');
+                
+                // 清空availableMoves来测试错误处理
+                const originalGetAvailableMoves = engine.aiPlayer.getAvailableMoves;
+                engine.aiPlayer.getAvailableMoves = function() {
+                    throw new Error('模拟错误：无法获取可用移动');
+                };
+                
+                const result = await engine.executeAITurn();
+                
+                if (result.success) {
+                    log('⚠️ 错误处理似乎没有生效，AI仍然成功执行', 'warning');
+                } else {
+                    log(`✅ 错误处理生效: ${result.error?.message}`, 'success');
+                }
+                
+                // 恢复原始方法
+                engine.aiPlayer.getAvailableMoves = originalGetAvailableMoves;
+                
+            } catch (error) {
+                log(`💥 错误处理测试异常: ${error.message}`, 'error');
+            }
+        };
+        
+        window.clearLog = function() {
+            document.getElementById('log').innerHTML = '';
+            log('📝 日志已清除', 'info');
+        };
+        
+        // 页面加载后自动运行基础测试
+        setTimeout(() => {
+            log('🚀 AI修复测试工具已加载', 'info');
+            testBasicAI();
+        }, 500);
+    </script>
+</body>
+</html>

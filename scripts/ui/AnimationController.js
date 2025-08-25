@@ -133,7 +133,7 @@ export class AnimationController {
         textFallback.innerHTML = `
             <div class="card-name">${card.name}</div>
             <div class="card-level">Lv.${card.level}</div>
-            <div class="card-faction-icon">${card.faction === 'dragon' ? '🐉' : '🐅'}</div>
+            <div class="card-faction-icon">${card.faction === 'dragon' ? '🐲' : '🐯'}</div>
         `;
         return textFallback;
     }
